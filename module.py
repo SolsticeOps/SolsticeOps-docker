@@ -161,7 +161,7 @@ class Module(BaseModule):
         return "core/modules/docker_scripts.html"
 
     def get_logs_url(self, tool):
-        container_name = tool.config_data.get('container_name', '')
+        container_name = tool.config_data.get('container_name', 'docker')
         return f'/docker/container/{container_name}/logs/'
 
     def get_resource_tabs(self):
