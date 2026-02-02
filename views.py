@@ -33,6 +33,14 @@ def container_logs(request, container_id):
         return HttpResponse(f"Error: {str(e)}")
 
 @login_required
+def docker_service_logs(request):
+    try:
+        output = subprocess.check_output(['sudo', '-n', 'journalctl', '-u', 'docker', '-n', '200', '--no-pager'], stderr=subprocess.STDOUT).decode()
+        return HttpResponse(output, content_type='text/plain')
+    except Exception as e:
+        return HttpResponse(f"Error fetching system logs: {str(e)}", status=500)
+
+@login_required
 def docker_container_config(request, container_id):
     try:
         client = docker.from_env()
