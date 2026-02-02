@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}Configure {{ container.name }}{% endblock %}
+
+{% block content %}
+<div class="pt-3 pb-2 mb-4 border-bottom">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'tool_detail' 'docker' %}">Docker</a></li>
+            <li class="breadcrumb-item active">{{ container.name }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center">
+        <h1 class="h2 mb-0">Container: <span class="text-primary">{{ container.name }}</span></h1>
+        <div class="btn-group">
+            <button type="submit" form="main-config-form" class="btn btn-primary fw-bold">
+                <i class="bi bi-save-fill me-1"></i> Save & Recreate
+            </button>
+            {% if container.status != 'running' %}
+            <button class="btn btn-success" hx-post="{% url 'docker_container_action' container.id 'start' %}" hx-target="body" hx-swap="none" onclick="setTimeout(function(){ location.reload(); }, 500)">
+                <i class="bi bi-play-fill"></i> Start
+            </button>
+            {% else %}
+            <button class="btn btn-warning" hx-post="{% url 'docker_container_action' container.id 'stop' %}" hx-target="body" hx-swap="none" onclick="setTimeout(function(){ location.reload(); }, 500)">
+                <i class="bi bi-pause-fill"></i> Stop
+            </button>
+            {% endif %}
+            <button class="btn btn-outline-secondary text-main border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'restart' %}" hx-target="body" hx-swap="none" onclick="setTimeout(function(){ location.reload(); }, 500)" style="color: var(--text-main);">
+                <i class="bi bi-arrow-clockwise"></i> Restart
+            </button>
+            <button class="btn btn-info text-white"
+                    onclick="openLogs('{% url 'docker_container_logs' container.id %}')">
+                <i class="bi bi-file-text"></i> Logs
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <form method="post" id="main-config-form">
+            {% csrf_token %}
+            <!-- Env Vars -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Environment Variables</h5>
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="addEnvRow()">+ Add Variable</button>
+                </div>
+                <div class="card-body">
+                    <div id="env-vars-container">
+                        {% for env in config.Config.Env %}
+                        {% with env|split_env as parts %}
+                        <div class="input-group mb-2">
+                            <input type="text" name="env_vars" class="form-control font-monospace" value="{{ parts.0 }}={{ parts.1 }}">
+                            <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
+                        </div>
+                        {% endwith %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ports -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Port Mappings</h5>
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="addPortRow()">+ Add Port</button>
+                </div>
+                <div class="card-body">
+                    <div id="ports-container">
+                        {% for port, mapping in config.NetworkSettings.Ports.items %}
+                        <div class="input-group mb-2">
+                            <span class="input-group-text small border-opacity-10" style="background-color: var(--icon-box); color: var(--muted);">Container</span>
+                            <input type="text" name="port_container" class="form-control font-monospace" value="{{ port }}">
+                            <span class="input-group-text small border-opacity-10" style="background-color: var(--icon-box); color: var(--muted);">Host</span>
+                            <input type="text" name="port_host" class="form-control font-monospace" value="{% if mapping %}{{ mapping.0.HostPort }}{% else %}{{ port|slice:':-4' }}{% endif %}">
+                            <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <small class="text-muted">Format: <code>80/tcp</code> and <code>8080</code></small>
+                </div>
+            </div>
+
+            <!-- Volumes -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Volumes / Binds</h5>
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="addVolumeRow()">+ Add Volume</button>
+                </div>
+                <div class="card-body">
+                    <div id="volumes-container">
+                        {% for bind in config.HostConfig.Binds %}
+                        <div class="input-group mb-2">
+                            <input type="text" name="volumes" class="form-control font-monospace" value="{{ bind }}" placeholder="source:target:mode">
+                            <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <small class="text-muted">Format: <code>/host/path:/container/path:rw</code> or <code>volume_name:/container/path:rw</code></small>
+                </div>
+            </div>
+
+            <!-- Network Recreation -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">Network Configuration (Primary)</h5>
+                </div>
+                <div class="card-body">
+                    <label class="form-label small fw-bold">Primary Network (used on recreation)</label>
+                    <select name="network" class="form-select mb-3">
+                        {% for net in networks_list %}
+                        <option value="{{ net.name }}" {% if container.attrs.HostConfig.NetworkMode == net.name or container.attrs.NetworkSettings.Networks.items.0.0 == net.name %}selected{% endif %}>{{ net.name }} ({{ net.attrs.Driver }})</option>
+                        {% endfor %}
+                    </select>
+                    <p class="small text-muted mb-0">Note: Changing this will only take effect after clicking "Save & Recreate".</p>
+                </div>
+            </div>
+        </form>
+
+        <!-- Multi-Network Management (Hot-plug) -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0">Connected Networks (Hot-plug)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive mb-4">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr class="small text-muted">
+                                <th>Network</th>
+                                <th>IP Address</th>
+                                <th>Gateway</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for net_name, net_data in container.attrs.NetworkSettings.Networks.items %}
+                            <tr>
+                                <td><span class="fw-bold">{{ net_name }}</span></td>
+                                <td><code>{{ net_data.IPAddress|default:"N/A" }}</code></td>
+                                <td><small class="text-muted">{{ net_data.Gateway|default:"N/A" }}</small></td>
+                                <td class="text-end">
+                                    <form method="post" style="display: inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="disconnect_network">
+                                        <input type="hidden" name="network_id" value="{{ net_name }}">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Disconnect from {{ net_name }}?')">
+                                            <i class="bi bi-plug-fill me-1"></i> Disconnect
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <form method="post" class="row g-3 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="connect_network">
+                    <div class="col-md-8">
+                        <label class="form-label small fw-bold">Connect to Network</label>
+                        <select name="network_id" class="form-select">
+                            {% for net in networks_list %}
+                            <option value="{{ net.id }}">{{ net.name }} ({{ net.attrs.Driver }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-outline-success w-100">
+                            <i class="bi bi-plus-lg me-1"></i> Connect
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 sticky-top" style="top: 20px;">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold">System Info</h6>
+            </div>
+            <div class="card-body small">
+                <div class="mb-2"><span class="text-muted">Image:</span><br><span class="text-break font-monospace x-small">{{ container.image.tags.0|default:container.image.id }}</span></div>
+                <div class="mb-2"><span class="text-muted">Status:</span><br><span class="badge {% if container.status == 'running' %}bg-success{% else %}bg-secondary{% endif %}">{{ container.status }}</span></div>
+                <div class="mb-2"><span class="text-muted">Created:</span><br>{{ config.Created|slice:":19" }}</div>
+                <div class="mb-2"><span class="text-muted">Container ID:</span><br><code class="x-small text-break">{{ container.id }}</code></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+function addEnvRow() {
+    const container = document.getElementById('env-vars-container');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = '\n        <input type="text" name="env_vars" class="form-control font-monospace" placeholder="KEY=VALUE">\n        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>\n    ';
+    container.appendChild(div);
+}
+
+function addPortRow() {
+    const container = document.getElementById('ports-container');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = '\n        <span class="input-group-text small border-opacity-10" style="background-color: var(--icon-box); color: var(--muted);">Container</span>\n        <input type="text" class="form-control font-monospace" placeholder="80/tcp">\n        <span class="input-group-text small border-opacity-10" style="background-color: var(--icon-box); color: var(--muted);">Host</span>        <input type="text" name="port_host" class="form-control font-monospace" placeholder="8080">\n        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>\n    ';
+    container.appendChild(div);
+}
+
+function addVolumeRow() {
+    const container = document.getElementById('volumes-container');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = '\n        <input type="text" name="volumes" class="form-control font-monospace" placeholder="volume_name:/container/path:rw">\n        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>\n    ';
+    container.appendChild(div);
+}
+</script>
+{% endblock %}

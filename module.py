@@ -138,6 +138,9 @@ class Module(BaseModule):
     def get_terminal_session_types(self):
         return {'docker': DockerSession}
 
+    def get_extra_content_template_name(self):
+        return "core/modules/docker_scripts.html"
+
     def get_logs_url(self, tool):
         container_name = tool.config_data.get('container_name', '')
         return f'/docker/container/{container_name}/logs/'
@@ -155,4 +158,13 @@ class Module(BaseModule):
         return [
             path('docker/container/<str:container_id>/act/<str:action>/', views.container_action, name='docker_container_action'),
             path('docker/container/<str:container_id>/logs/', views.container_logs, name='docker_container_logs'),
+            path('docker/container/<str:container_id>/config/', views.docker_container_config, name='docker_container_config'),
+            path('docker/container/<str:container_id>/shell/', views.docker_container_shell, name='docker_container_shell'),
+            path('docker/image/<str:image_id>/<str:action>/', views.docker_image_action, name='docker_image_action'),
+            path('docker/registry/create/', views.docker_registry_create, name='docker_registry_create'),
+            path('docker/registry/<int:registry_id>/delete/', views.docker_registry_delete, name='docker_registry_delete'),
+            path('docker/network/create/', views.docker_network_create, name='docker_network_create'),
+            path('docker/network/<str:network_id>/<str:action>/', views.docker_network_action, name='docker_network_action'),
+            path('docker/volume/create/', views.docker_volume_create, name='docker_volume_create'),
+            path('docker/volume/<str:volume_name>/<str:action>/', views.docker_volume_action, name='docker_volume_action'),
         ]
