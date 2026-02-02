@@ -138,6 +138,18 @@ class Module(BaseModule):
     def get_terminal_session_types(self):
         return {'docker': DockerSession}
 
+    def get_logs_url(self, tool):
+        container_name = tool.config_data.get('container_name', '')
+        return f'/docker/container/{container_name}/logs/'
+
+    def get_resource_tabs(self):
+        return [
+            {'id': 'containers', 'label': 'Containers', 'template': 'core/partials/docker_containers.html'},
+            {'id': 'images', 'label': 'Images', 'template': 'core/partials/docker_images.html'},
+            {'id': 'volumes', 'label': 'Volumes', 'template': 'core/partials/docker_volumes.html'},
+            {'id': 'networks', 'label': 'Networks', 'template': 'core/partials/docker_networks.html'},
+        ]
+
     def get_urls(self):
         from . import views
         return [
