@@ -1,0 +1,175 @@
+<div id="docker-images-list" hx-get="{% url 'tool_detail' 'docker' %}?tab=images" hx-trigger="every 10s" hx-target="this" hx-swap="outerHTML">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h6 class="fw-bold mb-0 text-uppercase small text-muted">Docker Images</h6>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#pullImageModal">
+                <i class="bi bi-download"></i> Pull Image
+            </button>
+            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#manageRegistriesModal">
+                <i class="bi bi-database-fill-gear"></i> Registries
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        {% for img in images %}
+        <div class="col-12">
+            <div class="card border-opacity-50">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-light rounded-3 p-2 me-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: var(--icon-box) !important;">
+                                <i class="bi bi-layers fs-5 text-info"></i>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h6 class="mb-0 fw-bold text-main">
+                                        {% for tag in img.tags %}
+                                            {{ tag }}{% if not forloop.last %}, {% endif %}
+                                        {% empty %}
+                                            <span class="text-muted italic">none</span>
+                                        {% endfor %}
+                                    </h6>
+                                    {% if img.id in used_images %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center justify-content-center px-2" style="font-size: 0.6rem; text-transform: uppercase; min-width: 65px; border-radius: 6px;">In Use</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted small font-monospace">
+                                    {{ img.short_id }} • {{ img.attrs.Size|divide:1048576|floatformat:1 }} MB • Created: {{ img.attrs.Created|slice:":10" }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-3">
+                            <button class="btn btn-sm btn-dark border border-danger border-opacity-25" 
+                                    hx-post="{% url 'docker_image_action' img.id 'remove' %}" 
+                                    hx-confirm="Delete image?" 
+                                    hx-target="#docker-images-list"
+                                    style="background-color: var(--icon-box) !important;"
+                                    {% if img.id in used_images %}disabled title="Cannot remove image in use"{% endif %}>
+                                <i class="bi bi-trash text-danger"></i>
+                            </button>                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5 border border-dashed rounded-3 text-muted">
+                <i class="bi bi-layers fs-1 mb-3 d-block opacity-25"></i>
+                No images found.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Pull Image Modal -->
+<div class="modal fade" id="pullImageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Pull Docker Image</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'docker_image_action' 'none' 'pull' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-light">Image Name</label>
+                        <input type="text" name="image_name" class="form-control bg-dark text-light border-secondary" placeholder="e.g. nginx:latest" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-light">Registry (Optional)</label>
+                        <select name="registry_id" class="form-select bg-dark text-light border-secondary">
+                            <option value="">Default (Docker Hub)</option>
+                            {% for reg in registries %}
+                            <option value="{{ reg.id }}">{{ reg.name }} ({{ reg.url }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Pull Image</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Registries Modal -->
+<div class="modal fade" id="manageRegistriesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Manage Docker Registries</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="text-light mb-3">Add New Registry</h6>
+                <form action="{% url 'docker_registry_create' %}" method="POST" class="row g-3 mb-4">
+                    {% csrf_token %}
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Name</label>
+                        <input type="text" name="name" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="My Registry" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">URL</label>
+                        <input type="text" name="url" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="https://index.docker.io/v1/" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Username (Optional)</label>
+                        <input type="text" name="username" class="form-control form-control-sm bg-dark text-light border-secondary">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Password/Token (Optional)</label>
+                        <input type="password" name="password" class="form-control form-control-sm bg-dark text-light border-secondary">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary btn-sm">Add Registry</button>
+                    </div>
+                </form>
+
+                <h6 class="text-light mb-3">Configured Registries</h6>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover table-sm small">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>URL</th>
+                                <th>Username</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reg in registries %}
+                            <tr>
+                                <td>{{ reg.name }}</td>
+                                <td>{{ reg.url }}</td>
+                                <td>{{ reg.username|default:"-" }}</td>
+                                <td>
+                                    {% if not reg.is_system %}
+                                    <a href="{% url 'docker_registry_delete' reg.id %}" class="text-danger" onclick="return confirm('Delete registry?')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted small">Read-only</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No registries configured.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

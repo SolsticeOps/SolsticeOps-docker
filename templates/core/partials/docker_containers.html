@@ -1,0 +1,96 @@
+<div id="docker-containers-list" hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h6 class="fw-bold mb-0 text-uppercase small text-muted">Active Instances</h6>
+        <button class="btn btn-xs btn-outline-secondary border-opacity-25 text-main fw-bold" hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" hx-target="#docker-containers-list" hx-swap="outerHTML" style="font-size: 0.75rem; color: var(--text-main);">
+            <i class="bi bi-arrow-clockwise me-1"></i> Sync
+        </button>
+    </div>
+    
+    {% if docker_error %}
+    <div class="alert alert-danger">Error connecting to Docker: {{ docker_error }}</div>
+    {% else %}
+    <div class="row g-3">
+        {% for container in containers %}
+        <div class="col-12">
+            <div class="card h-100 border-opacity-50">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-light rounded-3 p-2 me-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: var(--icon-box) !important;">
+                                <i class="bi bi-box-seam fs-5 {% if container.status == 'running' %}text-success{% else %}text-secondary{% endif %}"></i>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h6 class="mb-0">
+                                        <a href="{% url 'docker_container_config' container.id %}" class="text-decoration-none fw-bold text-main">
+                                            {{ container.name }}
+                                        </a>
+                                    </h6>
+                                    <span class="badge {% if container.status == 'running' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %} d-inline-flex align-items-center justify-content-center px-2" style="font-size: 0.6rem; text-transform: uppercase; min-width: 65px; border-radius: 6px;">
+                                        {{ container.status }}
+                                    </span>
+                                </div>
+                                <div class="text-muted small font-monospace">
+                                    {{ container.image.tags.0|default:container.image.id|slice:":32" }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-4">
+                            <!-- Port Mappings -->
+                            <div class="d-none d-md-block text-end">
+                                <div class="text-muted small mb-1" style="font-size: 0.6rem; text-transform: uppercase; font-weight: 600;">Ports</div>
+                                <div class="font-monospace small">
+                                    {% for port, mapping in container.attrs.NetworkSettings.Ports.items %}
+                                        {% if mapping %}
+                                            <span class="badge bg-dark-subtle text-main border border-secondary border-opacity-25">{{ mapping.0.HostPort }}<i class="bi bi-arrow-right mx-1"></i>{{ port }}</span>
+                                        {% endif %}
+                                    {% empty %}
+                                        <span class="text-muted small">—</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="d-flex gap-1 border-start ps-4">
+                                {% if container.status != 'running' %}
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'start' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Start" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-play-fill text-success"></i>
+                                </button>
+                                {% else %}
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'stop' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Stop" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-pause-fill text-warning"></i>
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'restart' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Restart" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-arrow-clockwise text-primary"></i>
+                                </button>
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25"
+                                        onclick="openLogs('{% url 'docker_container_logs' container.id %}')"
+                                        title="Logs" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-file-text text-info"></i>
+                                </button>
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25"
+                                        onclick="openDockerShell('{{ container.id }}', '{{ container.name }}')"
+                                        title="Shell" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-terminal text-secondary"></i>
+                                </button>
+                                <button class="btn btn-sm btn-dark border border-danger border-opacity-25 ms-2" hx-post="{% url 'docker_container_action' container.id 'remove' %}" hx-confirm="Are you sure?" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Delete" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-trash text-danger"></i>
+                                </button>                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5 border border-dashed rounded-3 text-muted">
+                <i class="bi bi-box-seam fs-1 mb-3 d-block opacity-25"></i>
+                No containers found.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

@@ -1,0 +1,84 @@
+<div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h6 class="fw-bold mb-0 text-uppercase small text-muted">Volumes</h6>
+        <button class="btn btn-xs btn-outline-secondary border-opacity-25 text-main fw-bold" data-bs-toggle="modal" data-bs-target="#createVolumeModal" style="font-size: 0.75rem;">
+            <i class="bi bi-plus-lg me-1"></i> Create
+        </button>
+    </div>
+
+    <div class="row g-3 mb-4">
+        {% for vol in volumes %}
+        <div class="col-12">
+            <div class="card border-opacity-50">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-light rounded-3 p-2 me-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background-color: var(--icon-box) !important;">
+                                <i class="bi bi-database fs-5 text-warning"></i>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h6 class="mb-0 fw-bold text-main">{{ vol.name }}</h6>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size: 0.6rem; text-transform: uppercase; border-radius: 6px;">{{ vol.attrs.Driver }}</span>
+                                    {% if vol.name in used_volumes %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center justify-content-center px-2" style="font-size: 0.6rem; text-transform: uppercase; min-width: 65px; border-radius: 6px;">In Use</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted small text-truncate font-monospace" style="max-width: 500px;" title="{{ vol.attrs.Mountpoint }}">
+                                    {{ vol.attrs.Mountpoint }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center">
+                            <a href="{% url 'docker_volume_action' vol.name 'remove' %}" 
+                               class="btn btn-sm btn-dark border border-danger border-opacity-25 {% if vol.name in used_volumes %}disabled{% endif %}"
+                               style="background-color: var(--icon-box) !important;"
+                               {% if vol.name in used_volumes %}title="Cannot remove volume in use"{% endif %}
+                               onclick="return confirm('Are you sure you want to remove this volume?')">
+                                <i class="bi bi-trash text-danger"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5 border border-dashed rounded-3 text-muted">
+                <i class="bi bi-database fs-1 mb-3 d-block opacity-25"></i>
+                No volumes found.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Create Volume Modal -->
+    <div class="modal fade" id="createVolumeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="{% url 'docker_volume_create' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Create Volume</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Volume Name</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Driver</label>
+                            <input type="text" name="driver" class="form-control" value="local">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
