@@ -1,7 +1,8 @@
 import docker
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
-from core.models import Tool, DockerRegistry
+from core.models import Tool
+from .models import DockerRegistry
 from django.contrib.auth.decorators import login_required
 
 @login_required

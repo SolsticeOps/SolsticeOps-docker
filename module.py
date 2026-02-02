@@ -2,7 +2,7 @@ import docker
 import subprocess
 import threading
 from django.shortcuts import render, redirect
-from django.urls import path
+from django.urls import path, re_path
 from core.plugin_system import BaseModule
 from core.terminal_manager import TerminalSession
 import logging
@@ -72,6 +72,7 @@ class Module(BaseModule):
     description = "Manage Docker containers, images, volumes and networks."
 
     def get_context_data(self, request, tool):
+        from .models import DockerRegistry
         context = {}
         if tool.status == 'installed':
             try:
@@ -87,6 +88,24 @@ class Module(BaseModule):
                 context['volumes'] = sorted(client.volumes.list(), key=lambda x: x.name)
                 context['networks'] = sorted(client.networks.list(), key=lambda x: x.name)
                 context['docker_info'] = client.info()
+                
+                # Get registries
+                db_registries = list(DockerRegistry.objects.all())
+                system_registries = []
+                try:
+                    reg_config = context['docker_info'].get('RegistryConfig', {})
+                    index_configs = reg_config.get('IndexConfigs', {})
+                    for name, config in index_configs.items():
+                        if not any(r.url == name or r.url in name for r in db_registries):
+                            system_registries.append({
+                                'id': f"sys_{name}",
+                                'name': f"{name} (System)",
+                                'url': name,
+                                'is_system': True
+                            })
+                except:
+                    pass
+                context['registries'] = db_registries + system_registries
             except Exception as e:
                 context['docker_error'] = str(e)
         return context
@@ -167,4 +186,10 @@ class Module(BaseModule):
             path('docker/network/<str:network_id>/<str:action>/', views.docker_network_action, name='docker_network_action'),
             path('docker/volume/create/', views.docker_volume_create, name='docker_volume_create'),
             path('docker/volume/<str:volume_name>/<str:action>/', views.docker_volume_action, name='docker_volume_action'),
+        ]
+
+    def get_websocket_urls(self):
+        from core import consumers
+        return [
+            re_path(r'ws/docker/shell/(?P<container_id>[\w.-]+)/$', consumers.TerminalConsumer.as_asgi(), {'session_type': 'docker'}),
         ]
