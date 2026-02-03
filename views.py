@@ -153,7 +153,7 @@ def docker_container_config(request, container_id):
         context = {
             'container': container,
             'config': config,
-            'networks': client.networks.list(),
+            'networks_list': client.networks.list(),
             'tool': get_object_or_404(Tool, name='docker')
         }
         return render(request, 'core/docker_container_config.html', context)
