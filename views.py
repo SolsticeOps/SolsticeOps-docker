@@ -34,6 +34,18 @@ def container_logs(request, container_id):
         return HttpResponse(f"Error: {str(e)}")
 
 @login_required
+def container_logs_download(request, container_id):
+    try:
+        client = docker.from_env()
+        container = client.containers.get(container_id)
+        logs = container.logs().decode('utf-8', errors='replace')
+        response = HttpResponse(logs, content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="container_{container_id}_logs.log"'
+        return response
+    except Exception as e:
+        return HttpResponse(f"Error downloading container logs: {str(e)}", status=500)
+
+@login_required
 def docker_service_logs(request):
     try:
         # Try journalctl without sudo first
@@ -52,6 +64,24 @@ def docker_service_logs(request):
         return HttpResponse(output, content_type='text/plain')
     except Exception as e:
         return HttpResponse(f"Error fetching system logs: {str(e)}", status=500)
+
+@login_required
+def docker_service_logs_download(request):
+    try:
+        # Try journalctl without sudo first
+        try:
+            output = subprocess.check_output(['journalctl', '-u', 'docker', '--no-pager'], stderr=subprocess.STDOUT).decode()
+            if "Hint: You are currently not seeing messages" in output:
+                raise subprocess.CalledProcessError(1, 'journalctl')
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # Fallback to sudo if the first one fails or is restricted
+            output = subprocess.check_output(['sudo', '-n', 'journalctl', '-u', 'docker', '--no-pager'], stderr=subprocess.STDOUT).decode()
+        
+        response = HttpResponse(output, content_type='text/plain')
+        response['Content-Disposition'] = 'attachment; filename="docker_service_logs.log"'
+        return response
+    except Exception as e:
+        return HttpResponse(f"Error downloading system logs: {str(e)}", status=500)
 
 @login_required
 def docker_container_config(request, container_id):

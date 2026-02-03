@@ -195,7 +195,9 @@ class Module(BaseModule):
         return [
             path('docker/container/<str:container_id>/act/<str:action>/', views.container_action, name='docker_container_action'),
             path('docker/container/<str:container_id>/logs/', views.container_logs, name='docker_container_logs'),
+            path('docker/container/<str:container_id>/logs/download/', views.container_logs_download, name='docker_container_logs_download'),
             path('docker/service/logs/', views.docker_service_logs, name='docker_service_logs'),
+            path('docker/service/logs/download/', views.docker_service_logs_download, name='docker_service_logs_download'),
             path('docker/container/<str:container_id>/config/', views.docker_container_config, name='docker_container_config'),
             path('docker/container/<str:container_id>/shell/', views.docker_container_shell, name='docker_container_shell'),
             path('docker/image/<str:image_id>/<str:action>/', views.docker_image_action, name='docker_image_action'),
