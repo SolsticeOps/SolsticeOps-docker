@@ -78,6 +78,15 @@ class Module(BaseModule):
     description = "Manage Docker containers, images, volumes and networks."
     version = "1.0.0"
 
+    def get_service_version(self):
+        try:
+            process = subprocess.run(["docker", "version", "--format", "{{.Client.Version}}"], capture_output=True, text=True)
+            if process.returncode == 0:
+                return process.stdout.strip()
+        except Exception:
+            pass
+        return None
+
     def get_context_data(self, request, tool):
         from .models import DockerRegistry
         context = {}
