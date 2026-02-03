@@ -67,8 +67,14 @@ class DockerSession(TerminalSession):
             pass
 
 class Module(BaseModule):
-    module_id = "docker"
-    module_name = "Docker"
+    @property
+    def module_id(self):
+        return "docker"
+
+    @property
+    def module_name(self):
+        return "Docker"
+
     description = "Manage Docker containers, images, volumes and networks."
 
     def get_context_data(self, request, tool):
@@ -168,10 +174,10 @@ class Module(BaseModule):
 
     def get_resource_tabs(self):
         return [
-            {'id': 'containers', 'label': 'Containers', 'template': 'core/partials/docker_containers.html'},
-            {'id': 'images', 'label': 'Images', 'template': 'core/partials/docker_images.html'},
-            {'id': 'volumes', 'label': 'Volumes', 'template': 'core/partials/docker_volumes.html'},
-            {'id': 'networks', 'label': 'Networks', 'template': 'core/partials/docker_networks.html'},
+            {'id': 'containers', 'label': 'Containers', 'template': 'core/partials/docker_containers.html', 'hx_get': '/tool/docker/?tab=containers', 'hx_auto_refresh': 'every 30s'},
+            {'id': 'images', 'label': 'Images', 'template': 'core/partials/docker_images.html', 'hx_get': '/tool/docker/?tab=images', 'hx_auto_refresh': 'every 60s'},
+            {'id': 'volumes', 'label': 'Volumes', 'template': 'core/partials/docker_volumes.html', 'hx_get': '/tool/docker/?tab=volumes', 'hx_auto_refresh': 'every 60s'},
+            {'id': 'networks', 'label': 'Networks', 'template': 'core/partials/docker_networks.html', 'hx_get': '/tool/docker/?tab=networks', 'hx_auto_refresh': 'every 60s'},
         ]
 
     def get_urls(self):
