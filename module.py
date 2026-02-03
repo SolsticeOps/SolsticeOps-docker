@@ -76,6 +76,7 @@ class Module(BaseModule):
         return "Docker"
 
     description = "Manage Docker containers, images, volumes and networks."
+    version = "1.0.0"
 
     def get_context_data(self, request, tool):
         from .models import DockerRegistry
