@@ -48,38 +48,4 @@
         </div>
         {% endfor %}
     </div>
-
-    <!-- Create Network Modal -->
-    <div class="modal fade" id="createNetworkModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form action="{% url 'docker_network_create' %}" method="POST">
-                    {% csrf_token %}
-                    <div class="modal-header">
-                        <h5 class="modal-title">Create Network</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Network Name</label>
-                            <input type="text" name="name" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Driver</label>
-                            <select name="driver" class="form-select">
-                                <option value="bridge">bridge</option>
-                                <option value="host">host</option>
-                                <option value="overlay">overlay</option>
-                                <option value="macvlan">macvlan</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Create</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 </div>

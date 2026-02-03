@@ -3,3 +3,178 @@
         openTerminal('ws/docker/shell/' + id + '/', id, name);
     }
 </script>
+
+<!-- Docker Modals -->
+<!-- Pull Image Modal -->
+<div class="modal fade" id="pullImageModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Pull Docker Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'docker_image_action' 'none' 'pull' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Image Name</label>
+                        <input type="text" name="image_name" class="form-control" placeholder="e.g. nginx:latest" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Registry (Optional)</label>
+                        <select name="registry_id" class="form-select">
+                            <option value="">Default (Docker Hub)</option>
+                            {% for reg in registries %}
+                            <option value="{{ reg.id }}">{{ reg.name }} ({{ reg.url }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Pull Image</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Registries Modal -->
+<div class="modal fade" id="manageRegistriesModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Manage Docker Registries</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="mb-3">Add New Registry</h6>
+                <form action="{% url 'docker_registry_create' %}" method="POST" class="row g-3 mb-4">
+                    {% csrf_token %}
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Name</label>
+                        <input type="text" name="name" class="form-control form-control-sm" placeholder="My Registry" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">URL</label>
+                        <input type="text" name="url" class="form-control form-control-sm" placeholder="https://index.docker.io/v1/" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Username (Optional)</label>
+                        <input type="text" name="username" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Password/Token (Optional)</label>
+                        <input type="password" name="password" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary btn-sm">Add Registry</button>
+                    </div>
+                </form>
+
+                <h6 class="mb-3">Configured Registries</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm small">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>URL</th>
+                                <th>Username</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reg in registries %}
+                            <tr>
+                                <td>{{ reg.name }}</td>
+                                <td>{{ reg.url }}</td>
+                                <td>{{ reg.username|default:"-" }}</td>
+                                <td>
+                                    {% if not reg.is_system %}
+                                    <a href="{% url 'docker_registry_delete' reg.id %}" class="text-danger" onclick="return confirm('Delete registry?')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted small">Read-only</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No registries configured.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Create Volume Modal -->
+<div class="modal fade" id="createVolumeModal" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{% url 'docker_volume_create' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Volume</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Volume Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Driver</label>
+                        <input type="text" name="driver" class="form-control" value="local">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Network Modal -->
+<div class="modal fade" id="createNetworkModal" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{% url 'docker_network_create' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Network</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Network Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Driver</label>
+                        <select name="driver" class="form-select">
+                            <option value="bridge">bridge</option>
+                            <option value="host">host</option>
+                            <option value="overlay">overlay</option>
+                            <option value="macvlan">macvlan</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
