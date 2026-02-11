@@ -23,12 +23,7 @@ class DockerSession(TerminalSession):
     def _setup_session(self):
         self.master_fd, self.slave_fd = pty.openpty()
         
-        sudo_password = os.environ.get('SUDO_PASSWORD')
-        if sudo_password:
-            # Use sudo -S to read password from stdin
-            cmd = ['sudo', '-S', 'docker', 'exec', '-it', self.container_id, '/bin/bash']
-        else:
-            cmd = ['sudo', 'docker', 'exec', '-it', self.container_id, '/bin/bash']
+        cmd = ['docker', 'exec', '-it', self.container_id, '/bin/bash']
         
         env = os.environ.copy()
         env['TERM'] = 'xterm-256color'
@@ -38,13 +33,6 @@ class DockerSession(TerminalSession):
             universal_newlines=False, env=env
         )
         os.close(self.slave_fd)
-
-        if sudo_password:
-            # Write password followed by a command to clear the line and previous line
-            # \x1b[1A moves cursor up, \x1b[2K clears the line
-            os.write(self.master_fd, f"{sudo_password}\n".encode())
-            time.sleep(0.5) # Wait for sudo to process and echo
-            os.write(self.master_fd, b"\x1b[1A\x1b[2K\x1b[1A\x1b[2K")
 
     def run(self):
         try:

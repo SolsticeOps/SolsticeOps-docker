@@ -56,9 +56,9 @@ class Container(DockerObject):
         return run_sudo_command(cmd)
 
     def exec_run(self, cmd):
-        # This is harder to implement exactly like docker-py, but we can try
+        # Executes a command in the container. Assumes running as root.
         full_cmd = ['docker', 'exec', self.id] + (cmd if isinstance(cmd, list) else cmd.split())
-        output = run_sudo_command(full_cmd)
+        output = run_sudo_command(full_cmd, timeout=600)
         # Mocking the result object
         class ExecResult:
             def __init__(self, output):
@@ -201,7 +201,7 @@ class ContainerManager(Manager):
                     cmd.extend(['-e', f"{k}={v}"])
         
         cmd.append(image)
-        run_sudo_command(cmd)
+        run_sudo_command(cmd, timeout=600)
         # Return mocked container object
         return self.get(kwargs.get('name') or image)
 
