@@ -141,7 +141,7 @@ class Module(BaseModule):
         return None
 
     def install(self, request, tool):
-        if tool.status != 'not_installed':
+        if tool.status not in ['not_installed', 'error']:
             return
 
         tool.status = 'installing'
