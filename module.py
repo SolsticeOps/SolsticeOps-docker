@@ -152,8 +152,8 @@ class Module(BaseModule):
                 ("Uninstalling conflicting packages...", "apt-get remove -y docker.io docker-compose docker-compose-v2 docker-doc podman-docker containerd runc"),
                 ("Updating apt repositories...", "apt-get update"),
                 ("Installing dependencies...", "apt-get install -y ca-certificates curl"),
-                ("Setting up Docker GPG key...", "install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo \"$ID\")/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc"),
-                ("Adding Docker repository...", "echo \"Types: deb\nURIs: https://download.docker.com/linux/$(. /etc/os-release && echo \"$ID\")\nSuites: $(. /etc/os-release && echo \"${UBUNTU_CODENAME:-$VERSION_CODENAME}\")\nComponents: stable\nSigned-By: /etc/apt/keyrings/docker.asc\" | tee /etc/apt/sources.list.d/docker.sources > /dev/null && rm -f /etc/apt/sources.list.d/docker.list"),
+                ("Setting up Docker GPG key...", "bash -c 'install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo \"$ID\")/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc'"),
+                ("Adding Docker repository...", "bash -c 'echo \"Types: deb\nURIs: https://download.docker.com/linux/$(. /etc/os-release && echo \"$ID\")\nSuites: $(. /etc/os-release && echo \"${UBUNTU_CODENAME:-$VERSION_CODENAME}\")\nComponents: stable\nSigned-By: /etc/apt/keyrings/docker.asc\" | tee /etc/apt/sources.list.d/docker.sources > /dev/null && rm -f /etc/apt/sources.list.d/docker.list'"),
                 ("Updating package index...", "apt-get update"),
                 ("Installing Docker packages...", "apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"),
                 ("Configuring user groups...", f"usermod -aG docker {request.user.username}")
