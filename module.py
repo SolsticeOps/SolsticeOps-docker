@@ -162,7 +162,7 @@ class Module(BaseModule):
                 for stage_name, command in stages:
                     tool.current_stage = stage_name
                     tool.save()
-                    run_sudo_command(command, shell=True, capture_output=False)
+                    run_sudo_command(command, shell=True, capture_output=False, timeout=600)
                 tool.status = 'installed'
                 tool.current_stage = "Installation completed successfully"
             except Exception as e:
