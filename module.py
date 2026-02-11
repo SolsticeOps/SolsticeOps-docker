@@ -1,11 +1,13 @@
-import docker
 import subprocess
 import threading
+import os
+import pty
 from django.shortcuts import render, redirect
 from django.urls import path, re_path
 from core.plugin_system import BaseModule
 from core.terminal_manager import TerminalSession
 from core.utils import run_sudo_command
+from .cli_wrapper import DockerCLI
 import logging
 import select
 
@@ -15,55 +17,56 @@ class DockerSession(TerminalSession):
     def __init__(self, container_id):
         super().__init__()
         self.container_id = container_id
-        self.client = docker.from_env()
         self._setup_session()
 
     def _setup_session(self):
-        cmd = ['/bin/bash', '--login']
-        try:
-            self.exec_id = self.client.api.exec_create(
-                self.container_id, cmd, stdin=True, tty=True, stdout=True, stderr=True
-            )['Id']
-        except:
-            self.exec_id = self.client.api.exec_create(
-                self.container_id, ['sh'], stdin=True, tty=True, stdout=True, stderr=True
-            )['Id']
-            
-        self.socket = self.client.api.exec_start(
-            self.exec_id, detach=False, tty=True, stream=True, socket=True
-        )._sock
-        self.socket.settimeout(0.1)
+        self.master_fd, self.slave_fd = pty.openpty()
+        
+        # Try bash first, then sh
+        cmd = ['sudo', 'docker', 'exec', '-it', self.container_id, '/bin/bash']
+        
+        env = os.environ.copy()
+        env['TERM'] = 'xterm-256color'
+        
+        self.process = subprocess.Popen(
+            cmd, preexec_fn=os.setsid, stdin=self.slave_fd, stdout=self.slave_fd, stderr=self.slave_fd,
+            universal_newlines=False, env=env
+        )
+        os.close(self.slave_fd)
 
     def run(self):
         try:
             while self.keep_running:
-                try:
-                    r, w, e = select.select([self.socket], [], [], 0.5)
-                    if self.socket in r:
-                        data = self.socket.recv(4096)
-                        if data:
-                            self.add_history(data)
-                        else:
-                            break
-                except (TimeoutError, BlockingIOError):
-                    continue
-                except Exception:
+                if self.process.poll() is not None:
                     break
+                r, w, e = select.select([self.master_fd], [], [], 0.5)
+                if self.master_fd in r:
+                    data = os.read(self.master_fd, 4096)
+                    if data:
+                        self.add_history(data)
+                    else:
+                        break
+        except:
+            pass
         finally:
             try:
-                self.socket.close()
+                os.close(self.master_fd)
             except:
                 pass
+            if self.process.poll() is None:
+                self.process.terminate()
 
     def send_input(self, data):
         try:
-            self.socket.send(data.encode())
+            os.write(self.master_fd, data.encode())
         except:
             pass
 
     def resize(self, rows, cols):
         try:
-            self.client.api.exec_resize(self.exec_id, height=rows, width=cols)
+            import fcntl, termios, struct
+            s = struct.pack('HHHH', rows, cols, 0, 0)
+            fcntl.ioctl(self.master_fd, termios.TIOCSWINSZ, s)
         except:
             pass
 
@@ -93,10 +96,10 @@ class Module(BaseModule):
         context = {}
         if tool.status == 'installed':
             try:
-                # Use sudo to connect to docker socket
-                client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+                # Use sudo-based CLI wrapper
+                client = DockerCLI()
                 containers = client.containers.list(all=True)
-                used_images = {c.image.id for c in containers}
+                used_images = {c.attrs.get('Image') for c in containers}
                 used_volumes = {m.get('Name') for c in containers for m in c.attrs.get('Mounts', []) if m.get('Type') == 'volume'}
                 
                 context['used_images'] = used_images
