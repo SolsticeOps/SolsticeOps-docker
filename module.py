@@ -157,7 +157,7 @@ class Module(BaseModule):
                 ("Updating package index...", "apt-get update"),
                 ("Installing Docker packages...", "apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"),
                 ("Configuring user groups...", "usermod -aG docker $(logname || echo $USER)"),
-                ("Applying group changes...", "chown root:docker /var/run/docker.sock && chmod 660 /var/run/docker.sock")
+                ("Applying group changes...", "bash -c 'chown root:docker /var/run/docker.sock && chmod 660 /var/run/docker.sock'")
             ]
             try:
                 for stage_name, command in stages:
