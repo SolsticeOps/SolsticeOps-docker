@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from core.models import Tool
 from .models import DockerRegistry
 from django.contrib.auth.decorators import login_required
-from core.utils import run_sudo_command
+from core.utils import run_command
 from .cli_wrapper import DockerCLI
 
 @login_required
@@ -57,7 +57,7 @@ def docker_service_logs(request):
                 raise subprocess.CalledProcessError(1, 'journalctl')
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to sudo if the first one fails or is restricted
-            output = run_sudo_command(['journalctl', '-u', 'docker', '-n', '200', '--no-pager']).decode()
+            output = run_command(['journalctl', '-u', 'docker', '-n', '200', '--no-pager']).decode()
         
         if not output.strip() or "No entries" in output:
             return HttpResponse("No log entries found. Ensure the 'docker' service is running and you have permissions to view logs (group 'systemd-journal' or 'adm').", content_type='text/plain')
@@ -76,7 +76,7 @@ def docker_service_logs_download(request):
                 raise subprocess.CalledProcessError(1, 'journalctl')
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to sudo if the first one fails or is restricted
-            output = run_sudo_command(['journalctl', '-u', 'docker', '--no-pager']).decode()
+            output = run_command(['journalctl', '-u', 'docker', '--no-pager']).decode()
         
         response = HttpResponse(output, content_type='text/plain')
         response['Content-Disposition'] = 'attachment; filename="docker_service_logs.log"'
@@ -215,10 +215,11 @@ def docker_network_action(request, network_id, action):
     try:
         client = DockerCLI()
         network = client.networks.get(network_id)
-        if action == 'remove':
-            network.remove()
-    except:
-        pass
+        if network:
+            if action == 'remove':
+                network.remove()
+    except Exception as e:
+        print(f"Error removing network {network_id}: {e}")
     return redirect('/tool/docker/?tab=networks')
 
 @login_required
@@ -239,10 +240,11 @@ def docker_volume_action(request, volume_name, action):
     try:
         client = DockerCLI()
         volume = client.volumes.get(volume_name)
-        if action == 'remove':
-            volume.remove(force=True)
-    except:
-        pass
+        if volume:
+            if action == 'remove':
+                volume.remove(force=True)
+    except Exception as e:
+        print(f"Error removing volume {volume_name}: {e}")
     return redirect('/tool/docker/?tab=volumes')
 
 @login_required

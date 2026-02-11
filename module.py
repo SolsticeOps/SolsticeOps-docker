@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect
 from django.urls import path, re_path
 from core.plugin_system import BaseModule
 from core.terminal_manager import TerminalSession
-from core.utils import run_sudo_command
+from core.utils import run_command
 from .cli_wrapper import DockerCLI
 import logging
 import select
@@ -84,7 +84,7 @@ class Module(BaseModule):
 
     def get_service_version(self):
         try:
-            process = run_sudo_command(["docker", "version", "--format", "{{.Client.Version}}"], capture_output=True)
+            process = run_command(["docker", "version", "--format", "{{.Client.Version}}"], capture_output=True)
             if process:
                 return process.decode().strip()
         except Exception:
@@ -165,7 +165,7 @@ class Module(BaseModule):
                 for stage_name, command in stages:
                     tool.current_stage = stage_name
                     tool.save()
-                    run_sudo_command(command, shell=True, capture_output=False, timeout=600)
+                    run_command(command, shell=True, capture_output=False, timeout=600)
                 tool.status = 'installed'
                 tool.current_stage = "Installation completed successfully"
             except Exception as e:

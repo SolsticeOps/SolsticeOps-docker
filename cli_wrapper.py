@@ -1,6 +1,6 @@
 import json
 import logging
-from core.utils import run_sudo_command
+from core.utils import run_command
 
 logger = logging.getLogger(__name__)
 
@@ -31,20 +31,20 @@ class Container(DockerObject):
         return Image({'Id': self.attrs.get('Image'), 'RepoTags': [self.attrs.get('Config', {}).get('Image', 'unknown')]})
 
     def start(self):
-        run_sudo_command(['docker', 'start', self.id])
+        run_command(['docker', 'start', self.id])
 
     def stop(self):
-        run_sudo_command(['docker', 'stop', self.id])
+        run_command(['docker', 'stop', self.id])
 
     def restart(self):
-        run_sudo_command(['docker', 'restart', self.id])
+        run_command(['docker', 'restart', self.id])
 
     def remove(self, force=False):
         cmd = ['docker', 'rm']
         if force:
             cmd.append('-f')
         cmd.append(self.id)
-        run_sudo_command(cmd)
+        run_command(cmd)
 
     def logs(self, tail=None, timestamps=False):
         cmd = ['docker', 'logs']
@@ -53,12 +53,12 @@ class Container(DockerObject):
         if timestamps:
             cmd.append('-t')
         cmd.append(self.id)
-        return run_sudo_command(cmd)
+        return run_command(cmd)
 
     def exec_run(self, cmd):
         # Executes a command in the container. Assumes running as root.
         full_cmd = ['docker', 'exec', self.id] + (cmd if isinstance(cmd, list) else cmd.split())
-        output = run_sudo_command(full_cmd, timeout=600)
+        output = run_command(full_cmd, timeout=600)
         # Mocking the result object
         class ExecResult:
             def __init__(self, output):
@@ -85,7 +85,7 @@ class Volume(DockerObject):
         if force:
             cmd.append('-f')
         cmd.append(self.id)
-        run_sudo_command(cmd)
+        run_command(cmd)
 
 class Network(DockerObject):
     @property
@@ -98,14 +98,14 @@ class Network(DockerObject):
 
     def connect(self, container):
         container_id = container.id if hasattr(container, 'id') else container
-        run_sudo_command(['docker', 'network', 'connect', self.id, container_id])
+        run_command(['docker', 'network', 'connect', self.id, container_id])
 
     def disconnect(self, container):
         container_id = container.id if hasattr(container, 'id') else container
-        run_sudo_command(['docker', 'network', 'disconnect', self.id, container_id])
+        run_command(['docker', 'network', 'disconnect', self.id, container_id])
 
     def remove(self):
-        run_sudo_command(['docker', 'network', 'rm', self.id])
+        run_command(['docker', 'network', 'rm', self.id])
 
 class DockerCLI:
     def __init__(self):
@@ -116,7 +116,7 @@ class DockerCLI:
 
     def info(self):
         try:
-            output = run_sudo_command(['docker', 'info', '--format', '{{json .}}'])
+            output = run_command(['docker', 'info', '--format', '{{json .}}'])
             return json.loads(output)
         except:
             return {}
@@ -128,7 +128,7 @@ class Manager:
         try:
             cmd = ['docker', 'inspect', '--format', '{{.Id}}', obj_id]
             # Use capture_output=True to avoid printing error if it doesn't exist
-            # but run_sudo_command logs errors by default.
+            # but run_command logs errors by default.
             # We can use a more silent approach: docker ps -a -q --filter name=...
             # but ID is more reliable.
             # Actually, let's just use docker ps/images/etc -q and check if ID is in list
@@ -141,7 +141,7 @@ class Manager:
             return []
         try:
             # Inspect multiple IDs at once
-            output = run_sudo_command(['docker', 'inspect'] + ids)
+            output = run_command(['docker', 'inspect'] + ids)
             data = json.loads(output)
             return [cls(item) for item in data]
         except Exception as e:
@@ -154,7 +154,7 @@ class ContainerManager(Manager):
         if all:
             cmd.append('-a')
         try:
-            output = run_sudo_command(cmd).decode().strip()
+            output = run_command(cmd).decode().strip()
             ids = output.split() if output else []
             return self._inspect_all(ids, Container)
         except:
@@ -163,7 +163,7 @@ class ContainerManager(Manager):
     def get(self, container_id):
         try:
             # Try to inspect directly but suppress logs if it fails
-            output = run_sudo_command(['docker', 'inspect', container_id], log_errors=False)
+            output = run_command(['docker', 'inspect', container_id], log_errors=False)
             if output:
                 data = json.loads(output)
                 if data:
@@ -201,14 +201,14 @@ class ContainerManager(Manager):
                     cmd.extend(['-e', f"{k}={v}"])
         
         cmd.append(image)
-        run_sudo_command(cmd, timeout=600)
+        run_command(cmd, timeout=600)
         # Return mocked container object
         return self.get(kwargs.get('name') or image)
 
 class ImageManager(Manager):
     def list(self):
         try:
-            output = run_sudo_command(['docker', 'images', '-q']).decode().strip()
+            output = run_command(['docker', 'images', '-q']).decode().strip()
             ids = list(set(output.split())) if output else []
             return self._inspect_all(ids, Image)
         except:
@@ -218,22 +218,22 @@ class ImageManager(Manager):
         image = f"{repository}:{tag}" if tag else repository
         # Auth config not easily supported via CLI without 'docker login'
         # but we can try if it's just public
-        run_sudo_command(['docker', 'pull', image])
+        run_command(['docker', 'pull', image])
 
     def remove(self, image_id, force=False):
         cmd = ['docker', 'rmi']
         if force:
             cmd.append('-f')
         cmd.append(image_id)
-        run_sudo_command(cmd)
+        run_command(cmd)
 
 class VolumeManager(Manager):
     def list(self):
         try:
-            output = run_sudo_command(['docker', 'volume', 'ls', '-q']).decode().strip()
+            output = run_command(['docker', 'volume', 'ls', '-q']).decode().strip()
             names = output.split() if output else []
             if not names: return []
-            output = run_sudo_command(['docker', 'volume', 'inspect'] + names)
+            output = run_command(['docker', 'volume', 'inspect'] + names)
             data = json.loads(output)
             return [Volume(item) for item in data]
         except:
@@ -241,7 +241,7 @@ class VolumeManager(Manager):
 
     def get(self, name):
         try:
-            output = run_sudo_command(['docker', 'volume', 'inspect', name], log_errors=False)
+            output = run_command(['docker', 'volume', 'inspect', name], log_errors=False)
             if output:
                 data = json.loads(output)
                 if data:
@@ -251,12 +251,12 @@ class VolumeManager(Manager):
         return None
 
     def create(self, name, driver='local'):
-        run_sudo_command(['docker', 'volume', 'create', '--name', name, '--driver', driver])
+        run_command(['docker', 'volume', 'create', '--name', name, '--driver', driver])
 
 class NetworkManager(Manager):
     def list(self):
         try:
-            output = run_sudo_command(['docker', 'network', 'ls', '-q']).decode().strip()
+            output = run_command(['docker', 'network', 'ls', '-q']).decode().strip()
             ids = output.split() if output else []
             return self._inspect_all(ids, Network)
         except:
@@ -264,7 +264,7 @@ class NetworkManager(Manager):
 
     def get(self, network_id):
         try:
-            output = run_sudo_command(['docker', 'network', 'inspect', network_id], log_errors=False)
+            output = run_command(['docker', 'network', 'inspect', network_id], log_errors=False)
             if output:
                 data = json.loads(output)
                 if data:
@@ -274,4 +274,4 @@ class NetworkManager(Manager):
         return None
 
     def create(self, name, driver='bridge'):
-        run_sudo_command(['docker', 'network', 'create', '--driver', driver, name])
+        run_command(['docker', 'network', 'create', '--driver', driver, name])
