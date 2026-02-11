@@ -5,6 +5,7 @@ from django.http import HttpResponse
 from core.models import Tool
 from .models import DockerRegistry
 from django.contrib.auth.decorators import login_required
+from core.utils import run_sudo_command
 
 @login_required
 def container_action(request, container_id, action):
@@ -56,7 +57,7 @@ def docker_service_logs(request):
                 raise subprocess.CalledProcessError(1, 'journalctl')
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to sudo if the first one fails or is restricted
-            output = subprocess.check_output(['sudo', '-n', 'journalctl', '-u', 'docker', '-n', '200', '--no-pager'], stderr=subprocess.STDOUT).decode()
+            output = run_sudo_command(['journalctl', '-u', 'docker', '-n', '200', '--no-pager']).decode()
         
         if not output.strip() or "No entries" in output:
             return HttpResponse("No log entries found. Ensure the 'docker' service is running and you have permissions to view logs (group 'systemd-journal' or 'adm').", content_type='text/plain')
@@ -75,7 +76,7 @@ def docker_service_logs_download(request):
                 raise subprocess.CalledProcessError(1, 'journalctl')
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to sudo if the first one fails or is restricted
-            output = subprocess.check_output(['sudo', '-n', 'journalctl', '-u', 'docker', '--no-pager'], stderr=subprocess.STDOUT).decode()
+            output = run_sudo_command(['journalctl', '-u', 'docker', '--no-pager']).decode()
         
         response = HttpResponse(output, content_type='text/plain')
         response['Content-Disposition'] = 'attachment; filename="docker_service_logs.log"'

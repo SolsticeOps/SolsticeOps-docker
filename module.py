@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect
 from django.urls import path, re_path
 from core.plugin_system import BaseModule
 from core.terminal_manager import TerminalSession
+from core.utils import run_sudo_command
 import logging
 import select
 
@@ -148,19 +149,19 @@ class Module(BaseModule):
         
         def run_install():
             stages = [
-                ("Updating apt repositories...", "sudo apt-get update"),
-                ("Installing dependencies...", "sudo apt-get install -y ca-certificates curl gnupg"),
-                ("Setting up Docker GPG key...", "sudo install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes && sudo chmod a+r /etc/apt/keyrings/docker.gpg"),
-                ("Adding Docker repository...", "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null"),
-                ("Updating package index...", "sudo apt-get update"),
-                ("Installing Docker packages...", "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"),
-                ("Configuring user groups...", f"sudo usermod -aG docker {request.user.username}")
+                ("Updating apt repositories...", "apt-get update"),
+                ("Installing dependencies...", "apt-get install -y ca-certificates curl gnupg"),
+                ("Setting up Docker GPG key...", "install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes && chmod a+r /etc/apt/keyrings/docker.gpg"),
+                ("Adding Docker repository...", "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable\" | tee /etc/apt/sources.list.d/docker.list > /dev/null"),
+                ("Updating package index...", "apt-get update"),
+                ("Installing Docker packages...", "apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"),
+                ("Configuring user groups...", f"usermod -aG docker {request.user.username}")
             ]
             try:
                 for stage_name, command in stages:
                     tool.current_stage = stage_name
                     tool.save()
-                    subprocess.run(command, shell=True, check=True)
+                    run_sudo_command(command, shell=True, capture_output=False)
                 tool.status = 'installed'
                 tool.current_stage = "Installation completed successfully"
             except Exception as e:
