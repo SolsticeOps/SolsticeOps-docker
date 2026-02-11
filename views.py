@@ -10,7 +10,7 @@ from core.utils import run_sudo_command
 @login_required
 def container_action(request, container_id, action):
     try:
-        client = docker.from_env()
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         container = client.containers.get(container_id)
         if action == 'start':
             container.start()
@@ -27,7 +27,7 @@ def container_action(request, container_id, action):
 @login_required
 def container_logs(request, container_id):
     try:
-        client = docker.from_env()
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         container = client.containers.get(container_id)
         logs = container.logs(tail=200).decode('utf-8', errors='replace')
         return HttpResponse(logs)
@@ -37,7 +37,7 @@ def container_logs(request, container_id):
 @login_required
 def container_logs_download(request, container_id):
     try:
-        client = docker.from_env()
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         container = client.containers.get(container_id)
         logs = container.logs().decode('utf-8', errors='replace')
         response = HttpResponse(logs, content_type='text/plain')
@@ -87,7 +87,7 @@ def docker_service_logs_download(request):
 @login_required
 def docker_container_config(request, container_id):
     try:
-        client = docker.from_env()
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         container = client.containers.get(container_id)
         config = container.attrs
         
@@ -164,7 +164,7 @@ def docker_container_config(request, container_id):
 @login_required
 def docker_image_action(request, image_id, action):
     try:
-        client = docker.from_env()
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         if action == 'remove':
             client.images.remove(image_id, force=True)
         elif action == 'pull':
@@ -213,7 +213,7 @@ def docker_registry_delete(request, registry_id):
 @login_required
 def docker_network_action(request, network_id, action):
     try:
-        client = docker.from_env()
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         network = client.networks.get(network_id)
         if action == 'remove':
             network.remove()
@@ -228,7 +228,7 @@ def docker_network_create(request):
         driver = request.POST.get('driver', 'bridge')
         if name:
             try:
-                client = docker.from_env()
+                client = docker.DockerClient(base_url='unix://var/run/docker.sock')
                 client.networks.create(name, driver=driver)
             except:
                 pass
@@ -237,7 +237,7 @@ def docker_network_create(request):
 @login_required
 def docker_volume_action(request, volume_name, action):
     try:
-        client = docker.from_env()
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         volume = client.volumes.get(volume_name)
         if action == 'remove':
             volume.remove(force=True)
@@ -252,7 +252,7 @@ def docker_volume_create(request):
         driver = request.POST.get('driver', 'local')
         if name:
             try:
-                client = docker.from_env()
+                client = docker.DockerClient(base_url='unix://var/run/docker.sock')
                 client.volumes.create(name=name, driver=driver)
             except:
                 pass

@@ -93,7 +93,8 @@ class Module(BaseModule):
         context = {}
         if tool.status == 'installed':
             try:
-                client = docker.from_env()
+                # Use sudo to connect to docker socket
+                client = docker.DockerClient(base_url='unix://var/run/docker.sock')
                 containers = client.containers.list(all=True)
                 used_images = {c.image.id for c in containers}
                 used_volumes = {m.get('Name') for c in containers for m in c.attrs.get('Mounts', []) if m.get('Type') == 'volume'}
@@ -155,8 +156,7 @@ class Module(BaseModule):
                 ("Setting up Docker GPG key...", "bash -c 'install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo \"$ID\")/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc'"),
                 ("Adding Docker repository...", "bash -c 'echo \"Types: deb\nURIs: https://download.docker.com/linux/$(. /etc/os-release && echo \"$ID\")\nSuites: $(. /etc/os-release && echo \"${UBUNTU_CODENAME:-$VERSION_CODENAME}\")\nComponents: stable\nArchitectures: $(dpkg --print-architecture)\nSigned-By: /etc/apt/keyrings/docker.asc\" | tee /etc/apt/sources.list.d/docker.sources > /dev/null && rm -f /etc/apt/sources.list.d/docker.list'"),
                 ("Updating package index...", "apt-get update"),
-                ("Installing Docker packages...", "apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"),
-                ("Applying socket permissions...", "bash -c 'chmod 666 /var/run/docker.sock'")
+                ("Installing Docker packages...", "apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin")
             ]
             try:
                 for stage_name, command in stages:
