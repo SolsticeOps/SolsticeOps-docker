@@ -73,10 +73,29 @@ class Image(DockerObject):
 
 class Volume(DockerObject):
     @property
+    def id(self):
+        return self.attrs.get('Name')
+
+    @property
     def name(self):
         return self.attrs.get('Name')
 
+    def remove(self, force=False):
+        cmd = ['docker', 'volume', 'rm']
+        if force:
+            cmd.append('-f')
+        cmd.append(self.id)
+        run_sudo_command(cmd)
+
 class Network(DockerObject):
+    @property
+    def id(self):
+        return self.attrs.get('Id')
+
+    @property
+    def name(self):
+        return self.attrs.get('Name')
+
     def connect(self, container):
         container_id = container.id if hasattr(container, 'id') else container
         run_sudo_command(['docker', 'network', 'connect', self.id, container_id])
@@ -143,19 +162,12 @@ class ContainerManager(Manager):
 
     def get(self, container_id):
         try:
-            # Check if exists first to avoid error logs in run_sudo_command
-            check = run_sudo_command(['docker', 'ps', '-a', '-q', '--filter', f'name=^/{container_id}$', '--filter', f'id={container_id}']).decode().strip()
-            if not check:
-                # Try without leading slash filter just in case
-                check = run_sudo_command(['docker', 'ps', '-a', '-q', '--filter', f'name=^{container_id}$']).decode().strip()
-            
-            if not check:
-                return None
-
-            output = run_sudo_command(['docker', 'inspect', container_id])
-            data = json.loads(output)
-            if data:
-                return Container(data[0])
+            # Try to inspect directly but suppress logs if it fails
+            output = run_sudo_command(['docker', 'inspect', container_id], log_errors=False)
+            if output:
+                data = json.loads(output)
+                if data:
+                    return Container(data[0])
         except:
             pass
         return None
@@ -229,15 +241,11 @@ class VolumeManager(Manager):
 
     def get(self, name):
         try:
-            # Check if exists first to avoid error logs
-            check = run_sudo_command(['docker', 'volume', 'ls', '-q', '--filter', f'name=^{name}$']).decode().strip()
-            if not check:
-                return None
-
-            output = run_sudo_command(['docker', 'volume', 'inspect', name])
-            data = json.loads(output)
-            if data:
-                return Volume(data[0])
+            output = run_sudo_command(['docker', 'volume', 'inspect', name], log_errors=False)
+            if output:
+                data = json.loads(output)
+                if data:
+                    return Volume(data[0])
         except:
             pass
         return None
@@ -256,15 +264,11 @@ class NetworkManager(Manager):
 
     def get(self, network_id):
         try:
-            # Check if exists first to avoid error logs
-            check = run_sudo_command(['docker', 'network', 'ls', '-q', '--filter', f'name=^{network_id}$', '--filter', f'id={network_id}']).decode().strip()
-            if not check:
-                return None
-
-            output = run_sudo_command(['docker', 'network', 'inspect', network_id])
-            data = json.loads(output)
-            if data:
-                return Network(data[0])
+            output = run_sudo_command(['docker', 'network', 'inspect', network_id], log_errors=False)
+            if output:
+                data = json.loads(output)
+                if data:
+                    return Network(data[0])
         except:
             pass
         return None
