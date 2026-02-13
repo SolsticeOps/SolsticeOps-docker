@@ -94,10 +94,11 @@ class Module(BaseModule):
     def get_service_status(self, tool):
         try:
             # Check if docker.service is active
-            status_process = run_command(["systemctl", "is-active", "docker"])
-            return 'running' if status_process.decode().strip() == "active" else 'stopped'
+            status_process = run_command(["systemctl", "is-active", "docker"], log_errors=False)
+            status = status_process.decode().strip()
+            return 'running' if status == "active" else 'stopped'
         except Exception:
-            return 'error'
+            return 'stopped'
 
     def service_start(self, tool):
         run_command(["systemctl", "start", "docker.socket", "docker.service"])
