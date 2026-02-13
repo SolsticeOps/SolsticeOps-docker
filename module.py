@@ -8,7 +8,7 @@ from django.urls import path, re_path
 from core.plugin_system import BaseModule
 from core.terminal_manager import TerminalSession
 from core.utils import run_command
-from .cli_wrapper import DockerCLI
+from core.docker_cli_wrapper import DockerCLI
 import logging
 import select
 

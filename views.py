@@ -5,7 +5,7 @@ from core.models import Tool
 from .models import DockerRegistry
 from django.contrib.auth.decorators import login_required
 from core.utils import run_command
-from .cli_wrapper import DockerCLI
+from core.docker_cli_wrapper import DockerCLI
 
 @login_required
 def container_action(request, container_id, action):
