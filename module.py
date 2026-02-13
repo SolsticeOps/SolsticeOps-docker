@@ -91,6 +91,23 @@ class Module(BaseModule):
             pass
         return None
 
+    def get_service_status(self, tool):
+        try:
+            # Check if docker.service is active
+            status_process = run_command(["systemctl", "is-active", "docker"])
+            return 'running' if status_process.decode().strip() == "active" else 'stopped'
+        except Exception:
+            return 'error'
+
+    def service_start(self, tool):
+        run_command(["systemctl", "start", "docker"])
+
+    def service_stop(self, tool):
+        run_command(["systemctl", "stop", "docker"])
+
+    def service_restart(self, tool):
+        run_command(["systemctl", "restart", "docker"])
+
     def get_context_data(self, request, tool):
         from .models import DockerRegistry
         context = {}
