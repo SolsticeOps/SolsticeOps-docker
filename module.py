@@ -170,6 +170,10 @@ class Module(BaseModule):
         tool.save()
         
         def run_install():
+            # Use a separate database connection for the background thread to avoid locking issues
+            from django import db
+            db.connections.close_all()
+            
             stages = [
                 ("Uninstalling conflicting packages...", "apt-get remove -y docker.io docker-compose docker-compose-v2 docker-doc podman-docker containerd runc"),
                 ("Updating apt repositories...", "apt-get update"),
@@ -181,15 +185,25 @@ class Module(BaseModule):
             ]
             try:
                 for stage_name, command in stages:
-                    tool.current_stage = stage_name
-                    tool.save()
+                    # Refresh tool object from DB
+                    from core.models import Tool
+                    tool_refresh = Tool.objects.get(pk=tool.pk)
+                    tool_refresh.current_stage = stage_name
+                    tool_refresh.save()
                     run_command(command, shell=True, capture_output=False, timeout=600)
-                tool.status = 'installed'
-                tool.current_stage = "Installation completed successfully"
+                
+                tool_refresh = Tool.objects.get(pk=tool.pk)
+                tool_refresh.status = 'installed'
+                tool_refresh.current_stage = "Installation completed successfully"
+                tool_refresh.save()
             except Exception as e:
-                tool.status = 'error'
-                tool.config_data['error_log'] = str(e)
-            tool.save()
+                try:
+                    tool_refresh = Tool.objects.get(pk=tool.pk)
+                    tool_refresh.status = 'error'
+                    tool_refresh.config_data['error_log'] = str(e)
+                    tool_refresh.save()
+                except:
+                    pass
 
         threading.Thread(target=run_install).start()
 
