@@ -9,14 +9,22 @@ class DockerObject:
         self.attrs = attrs
 
     def __getattr__(self, item):
+        if item == 'attrs':
+            raise AttributeError(item)
+
+        try:
+            attrs = self.attrs
+        except AttributeError:
+            raise AttributeError(item)
+
         # Map some common attributes
         if item == 'id':
-            return self.attrs.get('Id')
+            return attrs.get('Id')
         if item == 'name':
             # Names in inspect usually start with /
-            name = self.attrs.get('Name', '')
+            name = attrs.get('Name', '')
             return name[1:] if name.startswith('/') else name
-        return self.attrs.get(item)
+        return attrs.get(item)
 
 class Container(DockerObject):
     @property
