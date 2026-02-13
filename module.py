@@ -100,13 +100,13 @@ class Module(BaseModule):
             return 'error'
 
     def service_start(self, tool):
-        run_command(["systemctl", "start", "docker"])
+        run_command(["systemctl", "start", "docker.socket", "docker.service"])
 
     def service_stop(self, tool):
-        run_command(["systemctl", "stop", "docker"])
+        run_command(["systemctl", "stop", "docker.service", "docker.socket"])
 
     def service_restart(self, tool):
-        run_command(["systemctl", "restart", "docker"])
+        run_command(["systemctl", "restart", "docker.service"])
 
     def get_context_data(self, request, tool):
         from .models import DockerRegistry
