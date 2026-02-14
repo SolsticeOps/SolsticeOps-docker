@@ -321,3 +321,119 @@ class DockerModuleTest(TestCase):
         response = self.client.post(url, {'action': 'disconnect_network', 'network_id': 'net1'})
         self.assertEqual(response.status_code, 302)
         mock_network.disconnect.assert_called_with(mock_container)
+
+    @patch('modules.docker.module.run_command')
+    @patch('modules.docker.module.threading.Thread')
+    def test_docker_install(self, mock_thread, mock_run):
+        from modules.docker.module import Module
+        module = Module()
+        self.tool.status = 'not_installed'
+        self.tool.save()
+        
+        module.install(None, self.tool)
+        self.assertEqual(self.tool.status, 'installing')
+        mock_thread.assert_called_once()
+        
+        # Test inner run_install
+        target_func = mock_thread.call_args[1]['target']
+        target_func()
+        
+        self.tool.refresh_from_db()
+        self.assertEqual(self.tool.status, 'installed')
+        self.assertEqual(self.tool.current_stage, "Installation completed successfully")
+        
+        # Test failure
+        mock_run.side_effect = Exception("install error")
+        target_func()
+        self.tool.refresh_from_db()
+        self.assertEqual(self.tool.status, 'error')
+        self.assertIn("install error", self.tool.config_data['error_log'])
+
+    @patch('modules.docker.module.pty.openpty', return_value=(10, 11))
+    @patch('modules.docker.module.subprocess.Popen')
+    @patch('modules.docker.module.os.close')
+    @patch('modules.docker.module.select.select')
+    @patch('modules.docker.module.os.read')
+    def test_docker_session(self, mock_read, mock_select, mock_os_close, mock_popen, mock_pty):
+        from modules.docker.module import DockerSession
+        import threading
+        import time
+        
+        mock_process = MagicMock()
+        mock_process.poll.return_value = None
+        mock_popen.return_value = mock_process
+        
+        session = DockerSession("abc123")
+        self.assertEqual(session.container_id, "abc123")
+        
+        mock_select.return_value = ([10], [], [])
+        mock_read.return_value = b"output"
+        
+        def stop_session():
+            time.sleep(0.1)
+            session.keep_running = False
+        
+        threading.Thread(target=stop_session).start()
+        session.run()
+        
+        self.assertTrue(any(b"output" in h for h in session.history))
+        
+        with patch('modules.docker.module.os.write') as mock_write:
+            session.send_input("ls")
+            mock_write.assert_called()
+            
+        with patch('fcntl.ioctl') as mock_ioctl:
+            session.resize(24, 80)
+            mock_ioctl.assert_called()
+
+    def test_docker_handle_hx_request(self):
+        from modules.docker.module import Module
+        module = Module()
+        request = MagicMock()
+        
+        with patch.object(Module, 'get_context_data', return_value={'tool': self.tool}):
+            for target in ['containers', 'images', 'volumes', 'networks']:
+                response = module.handle_hx_request(request, self.tool, target)
+                self.assertIsNotNone(response)
+                self.assertEqual(response.status_code, 200)
+
+    @patch('modules.docker.views.DockerCLI')
+    def test_docker_image_action_pull(self, mock_docker):
+        mock_client = MagicMock()
+        mock_docker.return_value = mock_client
+        
+        url = reverse('docker_image_action', kwargs={'image_id': 'none', 'action': 'pull'})
+        
+        # Simple pull
+        self.client.post(url, {'image_name': 'nginx:latest'})
+        mock_client.images.pull.assert_called_with('nginx', tag='latest', auth_config=None)
+        
+        # Pull with registry
+        from modules.docker.models import DockerRegistry
+        reg = DockerRegistry.objects.create(name='R', url='u', username='un', password='pw')
+        self.client.post(url, {'image_name': 'myimg:v1', 'registry_id': reg.id})
+        mock_client.images.pull.assert_called_with('myimg', tag='v1', auth_config={'username': 'un', 'password': 'pw'})
+
+    @patch('modules.docker.views.run_command')
+    @patch('modules.docker.views.subprocess.check_output')
+    def test_docker_service_logs_no_entries(self, mock_sub, mock_run):
+        mock_sub.return_value = b"No entries"
+        url = reverse('docker_service_logs')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"No log entries found", response.content)
+
+    @patch('modules.docker.views.run_command')
+    @patch('modules.docker.views.subprocess.check_output')
+    def test_docker_service_logs_error(self, mock_sub, mock_run):
+        mock_sub.side_effect = Exception("logs error")
+        url = reverse('docker_service_logs')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 500)
+        self.assertIn(b"Error fetching system logs", response.content)
+
+    def test_docker_container_shell_view(self):
+        url = reverse('docker_container_shell', kwargs={'container_id': 'abc123'})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "Shell initialised")
