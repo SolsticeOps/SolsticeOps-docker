@@ -122,17 +122,69 @@ class Module(BaseModule):
             try:
                 # Use sudo-based CLI wrapper
                 client = DockerCLI()
+                
+                # Search and Pagination
+                from core.utils import paginate_list
+                search_query = request.GET.get('search', '')
+                page = request.GET.get('page', 1)
+                per_page = request.GET.get('per_page', 10)
+                target_tab = request.GET.get('tab', 'containers')
+
+                # Containers
                 containers = client.containers.list(all=True)
+                container_pagination = paginate_list(
+                    containers,
+                    page if target_tab == 'containers' else 1,
+                    per_page if target_tab == 'containers' else 10,
+                    search_query=search_query if target_tab == 'containers' else None,
+                    search_fields=['name', 'status', 'id']
+                )
+                context['containers'] = container_pagination['items']
+                context['containers_pagination'] = container_pagination
+
+                # Images
+                images = client.images.list()
+                image_pagination = paginate_list(
+                    images,
+                    page if target_tab == 'images' else 1,
+                    per_page if target_tab == 'images' else 10,
+                    search_query=search_query if target_tab == 'images' else None,
+                    search_fields=['tags', 'id']
+                )
+                context['images'] = image_pagination['items']
+                context['images_pagination'] = image_pagination
+
+                # Volumes
+                volumes = client.volumes.list()
+                volume_pagination = paginate_list(
+                    volumes,
+                    page if target_tab == 'volumes' else 1,
+                    per_page if target_tab == 'volumes' else 10,
+                    search_query=search_query if target_tab == 'volumes' else None,
+                    search_fields=['name']
+                )
+                context['volumes'] = volume_pagination['items']
+                context['volumes_pagination'] = volume_pagination
+
+                # Networks
+                networks = client.networks.list()
+                network_pagination = paginate_list(
+                    networks,
+                    page if target_tab == 'networks' else 1,
+                    per_page if target_tab == 'networks' else 10,
+                    search_query=search_query if target_tab == 'networks' else None,
+                    search_fields=['name', 'driver', 'id']
+                )
+                context['networks'] = network_pagination['items']
+                context['networks_pagination'] = network_pagination
+
                 used_images = {c.attrs.get('Image') for c in containers}
                 used_volumes = {m.get('Name') for c in containers for m in c.attrs.get('Mounts', []) if m.get('Type') == 'volume'}
                 
                 context['used_images'] = used_images
                 context['used_volumes'] = used_volumes
-                context['containers'] = sorted(containers, key=lambda x: x.name)
-                context['images'] = sorted(client.images.list(), key=lambda x: x.tags[0] if x.tags else x.id)
-                context['volumes'] = sorted(client.volumes.list(), key=lambda x: x.name)
-                context['networks'] = sorted(client.networks.list(), key=lambda x: x.name)
                 context['docker_info'] = client.info()
+                context['search_query'] = search_query
                 
                 # Get registries
                 db_registries = list(DockerRegistry.objects.all())
@@ -227,10 +279,10 @@ class Module(BaseModule):
 
     def get_resource_tabs(self):
         return [
-            {'id': 'containers', 'label': 'Containers', 'template': 'core/partials/docker_containers.html', 'hx_get': '/tool/docker/?tab=containers', 'hx_auto_refresh': 'every 30s'},
-            {'id': 'images', 'label': 'Images', 'template': 'core/partials/docker_images.html', 'hx_get': '/tool/docker/?tab=images', 'hx_auto_refresh': 'every 60s'},
-            {'id': 'volumes', 'label': 'Volumes', 'template': 'core/partials/docker_volumes.html', 'hx_get': '/tool/docker/?tab=volumes', 'hx_auto_refresh': 'every 60s'},
-            {'id': 'networks', 'label': 'Networks', 'template': 'core/partials/docker_networks.html', 'hx_get': '/tool/docker/?tab=networks', 'hx_auto_refresh': 'every 60s'},
+            {'id': 'containers', 'label': 'Containers', 'template': 'core/partials/docker_containers.html', 'hx_get': '/tool/docker/?tab=containers', 'hx_auto_refresh': 'every 30s [document.activeElement.tagName !== \'INPUT\' && document.activeElement.tagName !== \'SELECT\' && document.activeElement.tagName !== \'TEXTAREA\']'},
+            {'id': 'images', 'label': 'Images', 'template': 'core/partials/docker_images.html', 'hx_get': '/tool/docker/?tab=images', 'hx_auto_refresh': 'every 60s [document.activeElement.tagName !== \'INPUT\' && document.activeElement.tagName !== \'SELECT\' && document.activeElement.tagName !== \'TEXTAREA\']'},
+            {'id': 'volumes', 'label': 'Volumes', 'template': 'core/partials/docker_volumes.html', 'hx_get': '/tool/docker/?tab=volumes', 'hx_auto_refresh': 'every 60s [document.activeElement.tagName !== \'INPUT\' && document.activeElement.tagName !== \'SELECT\' && document.activeElement.tagName !== \'TEXTAREA\']'},
+            {'id': 'networks', 'label': 'Networks', 'template': 'core/partials/docker_networks.html', 'hx_get': '/tool/docker/?tab=networks', 'hx_auto_refresh': 'every 60s [document.activeElement.tagName !== \'INPUT\' && document.activeElement.tagName !== \'SELECT\' && document.activeElement.tagName !== \'TEXTAREA\']'},
         ]
 
     def get_urls(self):

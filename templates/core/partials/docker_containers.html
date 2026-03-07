@@ -1,9 +1,24 @@
-<div id="docker-containers-list" hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML">
+<div id="docker-containers-list">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h6 class="fw-bold mb-0 text-uppercase small text-muted">Active Instances</h6>
-        <button class="btn btn-xs btn-outline-secondary border-opacity-25 text-main fw-bold" hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" hx-target="#docker-containers-list" hx-swap="outerHTML" style="font-size: 0.75rem; color: var(--text-main);">
-            <i class="bi bi-arrow-clockwise me-1"></i> Sync
-        </button>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-xs btn-outline-secondary border-opacity-25 text-main fw-bold" hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" hx-target="#docker-containers-list" hx-swap="outerHTML" style="font-size: 0.75rem; color: var(--text-main);">
+                <i class="bi bi-arrow-clockwise me-1"></i> Sync
+            </button>
+            <form hx-get="{% url 'tool_detail' 'docker' %}?tab=containers"
+                  hx-target="#docker-containers-list"
+                  hx-swap="morph"
+                  class="input-group input-group-sm" style="width: 250px;">
+                <input type="text" 
+                       name="search" 
+                       class="form-control border-secondary border-opacity-25 bg-transparent" 
+                       placeholder="Search..." 
+                       value="{{ search_query }}">
+                <button type="submit" class="btn btn-outline-secondary border-secondary border-opacity-25">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+        </div>
     </div>
     
     {% if docker_error %}
@@ -92,5 +107,6 @@
         </div>
         {% endfor %}
     </div>
+    {% include 'core/partials/pagination.html' with pagination=containers_pagination base_url="/tool/docker/?tab=containers" target="#docker-containers-list" show_per_page_select=True include_selector="#docker-containers-list input[name='search']" %}
     {% endif %}
 </div>
