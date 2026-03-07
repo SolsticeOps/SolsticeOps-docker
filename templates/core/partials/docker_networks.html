@@ -1,9 +1,32 @@
-<div>
+<div id="docker-networks-list"
+     hx-get="{% url 'tool_detail' 'docker' %}?tab=networks" 
+     hx-trigger="every 60s" 
+     hx-target="this" 
+     hx-swap="morph"
+     hx-include="#docker-networks-list input[name='search'], #docker-networks-list select[name='per_page']">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h6 class="fw-bold mb-0 text-uppercase small text-muted">Networks</h6>
-        <button class="btn btn-xs btn-outline-secondary border-opacity-25 text-main fw-bold" data-bs-toggle="modal" data-bs-target="#createNetworkModal" style="font-size: 0.75rem;">
-            <i class="bi bi-plus-lg me-1"></i> Create
-        </button>
+        <div class="d-flex align-items-center gap-2">
+            <form hx-get="{% url 'tool_detail' 'docker' %}?tab=networks"
+                  hx-target="#docker-networks-list"
+                  hx-swap="morph"
+                  class="input-group input-group-sm" style="width: 250px;">
+                <span class="input-group-text bg-transparent border-secondary border-opacity-25 text-muted">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" 
+                       name="search" 
+                       class="form-control border-secondary border-opacity-25 bg-transparent" 
+                       placeholder="Search..." 
+                       value="{{ search_query }}">
+                <button type="submit" class="btn btn-outline-secondary border-secondary border-opacity-25">Search</button>
+            </form>
+            {% if user.can_manage_infrastructure %}
+            <button class="btn btn-xs btn-outline-secondary border-opacity-25 text-main fw-bold" data-bs-toggle="modal" data-bs-target="#createNetworkModal" style="font-size: 0.75rem;">
+                <i class="bi bi-plus-lg me-1"></i> Create
+            </button>
+            {% endif %}
+        </div>
     </div>
 
     <div class="row g-4 mb-4">
@@ -28,13 +51,15 @@
                         </div>
 
                         <div class="d-flex align-items-center">
-                            {% if net.name != "bridge" and net.name != "host" and net.name != "none" %}
-                            <a href="{% url 'docker_network_action' net.id 'remove' %}" 
-                               class="btn btn-sm btn-dark border border-danger border-opacity-25"
-                               style="background-color: var(--icon-box) !important;"
-                               onclick="return confirm('Are you sure you want to remove this network?')">
-                                <i class="bi bi-trash text-danger"></i>
-                            </a>
+                            {% if user.can_manage_infrastructure %}
+                                {% if net.name != "bridge" and net.name != "host" and net.name != "none" %}
+                                <a href="{% url 'docker_network_action' net.id 'remove' %}" 
+                                   class="btn btn-sm btn-dark border border-danger border-opacity-25"
+                                   style="background-color: var(--icon-box) !important;"
+                                   onclick="return confirm('Are you sure you want to remove this network?')">
+                                    <i class="bi bi-trash text-danger"></i>
+                                </a>
+                                {% endif %}
                             {% endif %}
                         </div>                </div>
             </div>
@@ -48,4 +73,6 @@
         </div>
         {% endfor %}
     </div>
+
+    {% include 'core/partials/pagination.html' with pagination=networks_pagination base_url="/tool/docker/?tab=networks" target="#docker-networks-list" show_per_page_select=True include_selector="#docker-networks-list input[name='search']" %}
 </div>

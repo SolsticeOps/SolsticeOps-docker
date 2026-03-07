@@ -1,9 +1,32 @@
-<div id="docker-containers-list" hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML">
+<div id="docker-containers-list" 
+     hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" 
+     hx-trigger="every 30s" 
+     hx-target="this" 
+     hx-swap="morph"
+     hx-include="#docker-containers-list input[name='search'], #docker-containers-list select[name='per_page']">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h6 class="fw-bold mb-0 text-uppercase small text-muted">Active Instances</h6>
-        <button class="btn btn-xs btn-outline-secondary border-opacity-25 text-main fw-bold" hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" hx-target="#docker-containers-list" hx-swap="outerHTML" style="font-size: 0.75rem; color: var(--text-main);">
-            <i class="bi bi-arrow-clockwise me-1"></i> Sync
-        </button>
+        <div class="d-flex align-items-center gap-2">
+            <form hx-get="{% url 'tool_detail' 'docker' %}?tab=containers"
+                  hx-target="#docker-containers-list"
+                  hx-swap="morph"
+                  hx-indicator="#docker-containers-indicator"
+                  class="input-group input-group-sm" style="width: 250px;">
+                <span class="input-group-text bg-transparent border-secondary border-opacity-25 text-muted">
+                    <i class="bi bi-search"></i>
+                    <div class="spinner-border spinner-border-sm htmx-indicator" id="docker-containers-indicator" role="status" style="width: 12px; height: 12px;"></div>
+                </span>
+                <input type="text" 
+                       name="search" 
+                       class="form-control border-secondary border-opacity-25 bg-transparent" 
+                       placeholder="Search..." 
+                       value="{{ search_query }}">
+                <button type="submit" class="btn btn-outline-secondary border-secondary border-opacity-25">Search</button>
+            </form>
+            <button class="btn btn-xs btn-outline-secondary border-opacity-25 text-main fw-bold" hx-get="{% url 'tool_detail' 'docker' %}?tab=containers" hx-target="#docker-containers-list" hx-swap="morph" style="font-size: 0.75rem; color: var(--text-main);">
+                <i class="bi bi-arrow-clockwise me-1"></i> Sync
+            </button>
+        </div>
     </div>
     
     {% if docker_error %}
@@ -53,23 +76,26 @@
 
                             <!-- Actions -->
                             <div class="d-flex gap-1 border-start ps-4">
-                                {% if container.status != 'running' %}
-                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'start' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Start" style="background-color: var(--icon-box) !important;">
-                                    <i class="bi bi-play-fill text-success"></i>
-                                </button>
-                                {% else %}
-                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'stop' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Stop" style="background-color: var(--icon-box) !important;">
-                                    <i class="bi bi-pause-fill text-warning"></i>
-                                </button>
+                                {% if user.can_manage_infrastructure %}
+                                    {% if container.status != 'running' %}
+                                    <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'start' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Start" style="background-color: var(--icon-box) !important;">
+                                        <i class="bi bi-play-fill text-success"></i>
+                                    </button>
+                                    {% else %}
+                                    <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'stop' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Stop" style="background-color: var(--icon-box) !important;">
+                                        <i class="bi bi-pause-fill text-warning"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'restart' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Restart" style="background-color: var(--icon-box) !important;">
+                                        <i class="bi bi-arrow-clockwise text-primary"></i>
+                                    </button>
                                 {% endif %}
-                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'restart' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Restart" style="background-color: var(--icon-box) !important;">
-                                    <i class="bi bi-arrow-clockwise text-primary"></i>
-                                </button>
                                 <button class="btn btn-sm btn-dark border border-secondary border-opacity-25"
                                         onclick="openLogs('{% url 'docker_container_logs' container.id %}')"
                                         title="Logs" style="background-color: var(--icon-box) !important;">
                                     <i class="bi bi-file-text text-info"></i>
                                 </button>
+                                {% if user.can_manage_infrastructure %}
                                 <button class="btn btn-sm btn-dark border border-secondary border-opacity-25"
                                         onclick="openDockerShell('{{ container.id }}', '{{ container.name }}')"
                                         title="Shell" style="background-color: var(--icon-box) !important;">
@@ -77,7 +103,9 @@
                                 </button>
                                 <button class="btn btn-sm btn-dark border border-danger border-opacity-25 ms-2" hx-post="{% url 'docker_container_action' container.id 'remove' %}" hx-confirm="Are you sure?" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Delete" style="background-color: var(--icon-box) !important;">
                                     <i class="bi bi-trash text-danger"></i>
-                                </button>                            </div>
+                                </button>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -92,5 +120,7 @@
         </div>
         {% endfor %}
     </div>
+
+    {% include 'core/partials/pagination.html' with pagination=containers_pagination base_url="/tool/docker/?tab=containers" target="#docker-containers-list" show_per_page_select=True include_selector="#docker-containers-list input[name='search']" %}
     {% endif %}
 </div>

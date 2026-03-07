@@ -123,16 +123,70 @@ class Module(BaseModule):
                 # Use sudo-based CLI wrapper
                 client = DockerCLI()
                 containers = client.containers.list(all=True)
+                images = client.images.list()
+                volumes = client.volumes.list()
+                networks = client.networks.list()
+                
                 used_images = {c.attrs.get('Image') for c in containers}
                 used_volumes = {m.get('Name') for c in containers for m in c.attrs.get('Mounts', []) if m.get('Type') == 'volume'}
                 
                 context['used_images'] = used_images
                 context['used_volumes'] = used_volumes
-                context['containers'] = sorted(containers, key=lambda x: x.name)
-                context['images'] = sorted(client.images.list(), key=lambda x: x.tags[0] if x.tags else x.id)
-                context['volumes'] = sorted(client.volumes.list(), key=lambda x: x.name)
-                context['networks'] = sorted(client.networks.list(), key=lambda x: x.name)
                 context['docker_info'] = client.info()
+
+                # Search and Pagination utility
+                from core.utils import paginate_list
+                search_query = request.GET.get('search', '')
+                page = request.GET.get('page', 1)
+                per_page = request.GET.get('per_page', 10)
+                target_tab = request.GET.get('tab', 'containers')
+
+                # Process each resource type
+                if target_tab == 'containers' or not request.headers.get('HX-Request'):
+                    container_pagination = paginate_list(
+                        sorted(containers, key=lambda x: x.name),
+                        page if target_tab == 'containers' else 1,
+                        per_page if target_tab == 'containers' else 10,
+                        search_query=search_query if target_tab == 'containers' else None,
+                        search_fields=['name', 'image.tags']
+                    )
+                    context['containers'] = container_pagination['items']
+                    context['containers_pagination'] = container_pagination
+
+                if target_tab == 'images' or not request.headers.get('HX-Request'):
+                    image_pagination = paginate_list(
+                        sorted(images, key=lambda x: x.tags[0] if x.tags else x.id),
+                        page if target_tab == 'images' else 1,
+                        per_page if target_tab == 'images' else 10,
+                        search_query=search_query if target_tab == 'images' else None,
+                        search_fields=['tags', 'id']
+                    )
+                    context['images'] = image_pagination['items']
+                    context['images_pagination'] = image_pagination
+
+                if target_tab == 'volumes' or not request.headers.get('HX-Request'):
+                    volume_pagination = paginate_list(
+                        sorted(volumes, key=lambda x: x.name),
+                        page if target_tab == 'volumes' else 1,
+                        per_page if target_tab == 'volumes' else 10,
+                        search_query=search_query if target_tab == 'volumes' else None,
+                        search_fields=['name']
+                    )
+                    context['volumes'] = volume_pagination['items']
+                    context['volumes_pagination'] = volume_pagination
+
+                if target_tab == 'networks' or not request.headers.get('HX-Request'):
+                    network_pagination = paginate_list(
+                        sorted(networks, key=lambda x: x.name),
+                        page if target_tab == 'networks' else 1,
+                        per_page if target_tab == 'networks' else 10,
+                        search_query=search_query if target_tab == 'networks' else None,
+                        search_fields=['name']
+                    )
+                    context['networks'] = network_pagination['items']
+                    context['networks_pagination'] = network_pagination
+
+                context['search_query'] = search_query
                 
                 # Get registries
                 db_registries = list(DockerRegistry.objects.all())

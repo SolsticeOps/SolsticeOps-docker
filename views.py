@@ -1,13 +1,13 @@
-import subprocess
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from core.models import Tool
 from .models import DockerRegistry
 from django.contrib.auth.decorators import login_required
-from core.utils import run_command
+from core.utils import run_command, devops_admin_required
 from core.docker_cli_wrapper import DockerCLI
 
 @login_required
+@devops_admin_required
 def container_action(request, container_id, action):
     try:
         client = DockerCLI()
@@ -92,6 +92,10 @@ def docker_container_config(request, container_id):
         config = container.attrs
         
         if request.method == 'POST':
+            # Check for admin role on write
+            if not request.user.can_manage_infrastructure:
+                return HttpResponse("Permission denied: DevOps Admin role required.", status=403)
+                
             action = request.POST.get('action')
             
             if action == 'connect_network':
@@ -162,6 +166,7 @@ def docker_container_config(request, container_id):
         return HttpResponse(str(e), status=500)
 
 @login_required
+@devops_admin_required
 def docker_image_action(request, image_id, action):
     try:
         client = DockerCLI()
@@ -189,6 +194,7 @@ def docker_image_action(request, image_id, action):
     return redirect('/tool/docker/?tab=images')
 
 @login_required
+@devops_admin_required
 def docker_registry_create(request):
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -205,12 +211,14 @@ def docker_registry_create(request):
     return redirect('/tool/docker/?tab=images')
 
 @login_required
+@devops_admin_required
 def docker_registry_delete(request, registry_id):
     registry = get_object_or_404(DockerRegistry, id=registry_id)
     registry.delete()
     return redirect('/tool/docker/?tab=images')
 
 @login_required
+@devops_admin_required
 def docker_network_action(request, network_id, action):
     try:
         client = DockerCLI()
@@ -223,6 +231,7 @@ def docker_network_action(request, network_id, action):
     return redirect('/tool/docker/?tab=networks')
 
 @login_required
+@devops_admin_required
 def docker_network_create(request):
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -236,6 +245,7 @@ def docker_network_create(request):
     return redirect('/tool/docker/?tab=networks')
 
 @login_required
+@devops_admin_required
 def docker_volume_action(request, volume_name, action):
     try:
         client = DockerCLI()
@@ -248,6 +258,7 @@ def docker_volume_action(request, volume_name, action):
     return redirect('/tool/docker/?tab=volumes')
 
 @login_required
+@devops_admin_required
 def docker_volume_create(request):
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -262,4 +273,6 @@ def docker_volume_create(request):
 
 @login_required
 def docker_container_shell(request, container_id):
+    if not request.user.can_manage_infrastructure:
+        return HttpResponse("Permission denied", status=403)
     return HttpResponse("Shell initialised")
