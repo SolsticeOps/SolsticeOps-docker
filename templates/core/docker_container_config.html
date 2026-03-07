@@ -15,6 +15,7 @@
     <div class="d-flex justify-content-between align-items-center">
         <h1 class="h2 mb-0">Container: <span class="text-primary">{{ container.name }}</span></h1>
         <div class="btn-group">
+            {% if user.can_manage_infrastructure %}
             <button type="submit" form="main-config-form" class="btn btn-primary fw-bold">
                 <i class="bi bi-save-fill me-1"></i> Save & Recreate
             </button>
@@ -30,6 +31,7 @@
             <button class="btn btn-outline-secondary text-main border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'restart' %}" hx-target="body" hx-swap="none" onclick="setTimeout(function(){ location.reload(); }, 500)" style="color: var(--text-main);">
                 <i class="bi bi-arrow-clockwise"></i> Restart
             </button>
+            {% endif %}
             <button class="btn btn-info text-white"
                     onclick="openLogs('{% url 'docker_container_logs' container.id %}')">
                 <i class="bi bi-file-text"></i> Logs
@@ -46,15 +48,19 @@
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Environment Variables</h5>
+                    {% if user.can_manage_infrastructure %}
                     <button type="button" class="btn btn-sm btn-outline-success" onclick="addEnvRow()">+ Add Variable</button>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     <div id="env-vars-container">
                         {% for env in config.Config.Env %}
                         {% with env|split_env as parts %}
                         <div class="input-group mb-2">
-                            <input type="text" name="env_vars" class="form-control font-monospace" value="{{ parts.0 }}={{ parts.1 }}">
+                            <input type="text" name="env_vars" class="form-control font-monospace" value="{{ parts.0 }}={{ parts.1 }}" {% if not user.can_manage_infrastructure %}disabled{% endif %}>
+                            {% if user.can_manage_infrastructure %}
                             <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
+                            {% endif %}
                         </div>
                         {% endwith %}
                         {% endfor %}
@@ -66,17 +72,21 @@
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Port Mappings</h5>
+                    {% if user.can_manage_infrastructure %}
                     <button type="button" class="btn btn-sm btn-outline-success" onclick="addPortRow()">+ Add Port</button>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     <div id="ports-container">
                         {% for port, mapping in config.NetworkSettings.Ports.items %}
                         <div class="input-group mb-2">
                             <span class="input-group-text small border-opacity-10" style="background-color: var(--icon-box); color: var(--muted);">Container</span>
-                            <input type="text" name="port_container" class="form-control font-monospace" value="{{ port }}">
+                            <input type="text" name="port_container" class="form-control font-monospace" value="{{ port }}" {% if not user.can_manage_infrastructure %}disabled{% endif %}>
                             <span class="input-group-text small border-opacity-10" style="background-color: var(--icon-box); color: var(--muted);">Host</span>
-                            <input type="text" name="port_host" class="form-control font-monospace" value="{% if mapping %}{{ mapping.0.HostPort }}{% else %}{{ port|slice:':-4' }}{% endif %}">
+                            <input type="text" name="port_host" class="form-control font-monospace" value="{% if mapping %}{{ mapping.0.HostPort }}{% else %}{{ port|slice:':-4' }}{% endif %}" {% if not user.can_manage_infrastructure %}disabled{% endif %}>
+                            {% if user.can_manage_infrastructure %}
                             <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -88,14 +98,18 @@
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Volumes / Binds</h5>
+                    {% if user.can_manage_infrastructure %}
                     <button type="button" class="btn btn-sm btn-outline-success" onclick="addVolumeRow()">+ Add Volume</button>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     <div id="volumes-container">
                         {% for bind in config.HostConfig.Binds %}
                         <div class="input-group mb-2">
-                            <input type="text" name="volumes" class="form-control font-monospace" value="{{ bind }}" placeholder="source:target:mode">
+                            <input type="text" name="volumes" class="form-control font-monospace" value="{{ bind }}" placeholder="source:target:mode" {% if not user.can_manage_infrastructure %}disabled{% endif %}>
+                            {% if user.can_manage_infrastructure %}
                             <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">-</button>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -110,7 +124,7 @@
                 </div>
                 <div class="card-body">
                     <label class="form-label small fw-bold">Primary Network (used on recreation)</label>
-                    <select name="network" class="form-select mb-3">
+                    <select name="network" class="form-select mb-3" {% if not user.can_manage_infrastructure %}disabled{% endif %}>
                         {% for net in networks_list %}
                         <option value="{{ net.name }}" {% if container.attrs.HostConfig.NetworkMode == net.name or container.attrs.NetworkSettings.Networks.items.0.0 == net.name %}selected{% endif %}>{{ net.name }} ({{ net.attrs.Driver }})</option>
                         {% endfor %}
@@ -133,7 +147,7 @@
                                 <th>Network</th>
                                 <th>IP Address</th>
                                 <th>Gateway</th>
-                                <th class="text-end">Action</th>
+                                {% if user.can_manage_infrastructure %}<th class="text-end">Action</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -142,6 +156,7 @@
                                 <td><span class="fw-bold">{{ net_name }}</span></td>
                                 <td><code>{{ net_data.IPAddress|default:"N/A" }}</code></td>
                                 <td><small class="text-muted">{{ net_data.Gateway|default:"N/A" }}</small></td>
+                                {% if user.can_manage_infrastructure %}
                                 <td class="text-end">
                                     <form method="post" style="display: inline;">
                                         {% csrf_token %}
@@ -152,12 +167,14 @@
                                         </button>
                                     </form>
                                 </td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
 
+                {% if user.can_manage_infrastructure %}
                 <form method="post" class="row g-3 align-items-end">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="connect_network">
@@ -175,8 +192,10 @@
                         </button>
                     </div>
                 </form>
+                {% endif %}
             </div>
         </div>
+
     </div>
 
     <div class="col-md-4">
