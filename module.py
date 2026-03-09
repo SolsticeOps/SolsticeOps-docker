@@ -28,8 +28,16 @@ class DockerSession(TerminalSession):
         env = os.environ.copy()
         env['TERM'] = 'xterm-256color'
         
+        def preexec():
+            import fcntl, termios
+            os.setsid()
+            try:
+                fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+            except:
+                pass
+
         self.process = subprocess.Popen(
-            cmd, preexec_fn=os.setsid, stdin=self.slave_fd, stdout=self.slave_fd, stderr=self.slave_fd,
+            cmd, preexec_fn=preexec, stdin=self.slave_fd, stdout=self.slave_fd, stderr=self.slave_fd,
             universal_newlines=False, env=env
         )
         os.close(self.slave_fd)

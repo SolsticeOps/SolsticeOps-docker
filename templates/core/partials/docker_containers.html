@@ -68,35 +68,59 @@
 
                             <!-- Actions -->
                             <div class="d-flex gap-1 border-start ps-4">
-                                {% if user.can_manage_infrastructure %}
-                                    {% if container.status != 'running' %}
-                                    <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'start' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Start" style="background-color: var(--icon-box) !important;">
-                                        <i class="bi bi-play-fill text-success"></i>
-                                    </button>
-                                    {% else %}
-                                    <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'stop' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Stop" style="background-color: var(--icon-box) !important;">
-                                        <i class="bi bi-pause-fill text-warning"></i>
-                                    </button>
-                                    {% endif %}
-                                    <button class="btn btn-sm btn-dark border border-secondary border-opacity-25" hx-post="{% url 'docker_container_action' container.id 'restart' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Restart" style="background-color: var(--icon-box) !important;">
-                                        <i class="bi bi-arrow-clockwise text-primary"></i>
-                                    </button>
+                                {% if container.status != 'running' %}
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25 {% if not user.can_manage_infrastructure %}opacity-50{% endif %}" 
+                                        {% if user.can_manage_infrastructure %}
+                                        hx-post="{% url 'docker_container_action' container.id 'start' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" 
+                                        {% else %}
+                                        disabled
+                                        {% endif %}
+                                        title="Start" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-play-fill text-success"></i>
+                                </button>
+                                {% else %}
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25 {% if not user.can_manage_infrastructure %}opacity-50{% endif %}" 
+                                        {% if user.can_manage_infrastructure %}
+                                        hx-post="{% url 'docker_container_action' container.id 'stop' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" 
+                                        {% else %}
+                                        disabled
+                                        {% endif %}
+                                        title="Stop" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-pause-fill text-warning"></i>
+                                </button>
                                 {% endif %}
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25 {% if not user.can_manage_infrastructure %}opacity-50{% endif %}" 
+                                        {% if user.can_manage_infrastructure %}
+                                        hx-post="{% url 'docker_container_action' container.id 'restart' %}" hx-target="#docker-containers-list" hx-swap="outerHTML" 
+                                        {% else %}
+                                        disabled
+                                        {% endif %}
+                                        title="Restart" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-arrow-clockwise text-primary"></i>
+                                </button>
                                 <button class="btn btn-sm btn-dark border border-secondary border-opacity-25"
                                         onclick="openLogs('{% url 'docker_container_logs' container.id %}')"
                                         title="Logs" style="background-color: var(--icon-box) !important;">
                                     <i class="bi bi-file-text text-info"></i>
                                 </button>
-                                {% if user.can_manage_infrastructure %}
-                                    <button class="btn btn-sm btn-dark border border-secondary border-opacity-25"
-                                            onclick="openDockerShell('{{ container.id }}', '{{ container.name }}')"
-                                            title="Shell" style="background-color: var(--icon-box) !important;">
-                                        <i class="bi bi-terminal text-secondary"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-dark border border-danger border-opacity-25 ms-2" hx-post="{% url 'docker_container_action' container.id 'remove' %}" hx-confirm="Are you sure?" hx-target="#docker-containers-list" hx-swap="outerHTML" title="Delete" style="background-color: var(--icon-box) !important;">
-                                        <i class="bi bi-trash text-danger"></i>
-                                    </button>
-                                {% endif %}
+                                <button class="btn btn-sm btn-dark border border-secondary border-opacity-25 {% if not user.can_manage_infrastructure %}opacity-50{% endif %}"
+                                        {% if user.can_manage_infrastructure %}
+                                        onclick="openDockerShell('{{ container.id }}', '{{ container.name }}')"
+                                        {% else %}
+                                        disabled
+                                        {% endif %}
+                                        title="Shell" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-terminal text-secondary"></i>
+                                </button>
+                                <button class="btn btn-sm btn-dark border border-danger border-opacity-25 ms-2 {% if not user.can_manage_infrastructure %}opacity-50{% endif %}" 
+                                        {% if user.can_manage_infrastructure %}
+                                        hx-post="{% url 'docker_container_action' container.id 'remove' %}" hx-confirm="Are you sure?" hx-target="#docker-containers-list" hx-swap="outerHTML" 
+                                        {% else %}
+                                        disabled
+                                        {% endif %}
+                                        title="Delete" style="background-color: var(--icon-box) !important;">
+                                    <i class="bi bi-trash text-danger"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
