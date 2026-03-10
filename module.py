@@ -123,23 +123,59 @@ class Module(BaseModule):
     def service_restart(self, tool):
         run_command(["systemctl", "restart", "docker.service"])
 
-    def get_context_data(self, request, tool):
+    def get_context_data(self, request, tool, force_refresh=False):
         from .models import DockerRegistry
+        from django.core.cache import cache
         context = {}
         if tool.status == 'installed':
             try:
                 # Use sudo-based CLI wrapper
                 client = DockerCLI()
                 
+                # Fetch all data once (cached by background poll or here)
+                cache_key_raw = f'docker_raw_data_{tool.id}'
+                raw_data = cache.get(cache_key_raw)
+                
+                # If not forced and not in background, try to use cache. 
+                # If cache is missing, but we are in a request, it means background poll hasn't run yet.
+                if not raw_data or force_refresh:
+                    containers = client.containers.list(all=True)
+                    images = client.images.list()
+                    volumes = client.volumes.list()
+                    networks = client.networks.list()
+                    info = client.info()
+                    
+                    raw_data = {
+                        'containers': containers,
+                        'images': images,
+                        'volumes': volumes,
+                        'networks': networks,
+                        'info': info,
+                        'timestamp': time.time()
+                    }
+                    # Cache raw data for 5 minutes (background poll should refresh it every 15s)
+                    cache.set(cache_key_raw, raw_data, 300)
+                
+                containers = raw_data['containers']
+                images = raw_data['images']
+                volumes = raw_data['volumes']
+                networks = raw_data['networks']
+                docker_info = raw_data['info']
+
                 # Search and Pagination
                 from core.utils import paginate_list
-                search_query = request.GET.get('search', '')
-                page = request.GET.get('page', 1)
-                per_page = request.GET.get('per_page', 10)
-                target_tab = request.GET.get('tab', 'containers')
+                if request:
+                    search_query = request.GET.get('search', '')
+                    page = request.GET.get('page', 1)
+                    per_page = request.GET.get('per_page', 10)
+                    target_tab = request.GET.get('tab', 'containers')
+                else:
+                    search_query = ''
+                    page = 1
+                    per_page = 10
+                    target_tab = 'containers'
 
                 # Containers
-                containers = client.containers.list(all=True)
                 container_pagination = paginate_list(
                     containers,
                     page if target_tab == 'containers' else 1,
@@ -151,7 +187,6 @@ class Module(BaseModule):
                 context['containers_pagination'] = container_pagination
 
                 # Images
-                images = client.images.list()
                 image_pagination = paginate_list(
                     images,
                     page if target_tab == 'images' else 1,
@@ -163,7 +198,6 @@ class Module(BaseModule):
                 context['images_pagination'] = image_pagination
 
                 # Volumes
-                volumes = client.volumes.list()
                 volume_pagination = paginate_list(
                     volumes,
                     page if target_tab == 'volumes' else 1,
@@ -175,7 +209,6 @@ class Module(BaseModule):
                 context['volumes_pagination'] = volume_pagination
 
                 # Networks
-                networks = client.networks.list()
                 network_pagination = paginate_list(
                     networks,
                     page if target_tab == 'networks' else 1,
@@ -191,7 +224,7 @@ class Module(BaseModule):
                 
                 context['used_images'] = used_images
                 context['used_volumes'] = used_volumes
-                context['docker_info'] = client.info()
+                context['docker_info'] = docker_info
                 context['search_query'] = search_query
                 
                 # Get registries
